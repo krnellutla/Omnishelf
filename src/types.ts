@@ -19,6 +19,12 @@ export interface Product {
   updatedAt: string;
   createdBy: string;
   tenantId?: string; // Multi-tenant isolation ID
+  
+  // Phase 2 advanced tracking:
+  trackingType?: 'NONE' | 'LOT' | 'SERIAL' | 'EXPIRY';
+  lotNumber?: string;
+  serialNumber?: string;
+  expiryDate?: string;
 }
 
 export type TransactionType = 'IN' | 'OUT' | 'ADJUSTMENT';
@@ -57,3 +63,91 @@ export interface InventoryStats {
   totalValueRetail: number; // Potential sales value
   lowStockCount: number;
 }
+
+// --- Phase 2 Enterprise Gate Interfaces ---
+
+export type UserRole = 'Operations Director' | 'Warehouse Manager' | 'Finance Controller' | 'Fulfillment Coordinator';
+
+export interface PurchaseOrderItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  quantityOrdered: number;
+  quantityReceived: number;
+  unitCost: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  tenantId: string;
+  supplierName: string;
+  status: 'DRAFT' | 'SENT' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED';
+  items: PurchaseOrderItem[];
+  createdAt: string;
+  updatedAt: string;
+  invoiceAmount?: number; // supplier bill
+  threeWayMatchResult?: 'MATCHED' | 'DISCREPANCY' | 'PENDING';
+  discrepancyDetails?: string;
+  approvalRequired: boolean;
+  isApproved: boolean;
+  approvedBy?: string;
+}
+
+export interface CycleCountItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  expectedQuantity: number;
+  actualQuantity?: number;
+  variance?: number; // actual - expected
+  reasonCode?: string;
+  expiryDateMatched?: boolean;
+}
+
+export interface CycleCountSession {
+  id: string;
+  tenantId: string;
+  name: string; // e.g. "Weekly Fast-movers ABC Count"
+  status: 'ACTIVE' | 'PENDING_APPROVAL' | 'RECONCILED' | 'CANCELLED';
+  items: CycleCountItem[];
+  createdAt: string;
+  updatedAt: string;
+  operatorUserId: string;
+  approvedBy?: string;
+}
+
+export interface SalesOrderItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  quantityOrdered: number;
+  quantityPicked: number;
+  price: number;
+}
+
+export interface SalesOrder {
+  id: string; // Cust-SO-xxxx
+  tenantId: string;
+  customerName: string;
+  deliveryAddress: string;
+  status: 'UNFULFILLED' | 'PICKING' | 'PACKING' | 'SHIPPED' | 'DELIVERED' | 'RMA_REQUESTED' | 'RMA_RESOLVED';
+  items: SalesOrderItem[];
+  createdAt: string;
+  carrierName?: string;
+  shippingService?: string; // e.g. Express, Ground
+  shippingCost?: number;
+  trackingNumber?: string;
+  trackingStep?: 'PRE_DEPARTURE' | 'STAGED' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'EXCEPTION_HOLD';
+  trackingLogs?: string[];
+  rmaReason?: string;
+  rmaDisposition?: 'RESTOCKED' | 'REFURBISHED' | 'WRITE_OFF' | 'PENDING';
+}
+
+export interface WebhookLog {
+  id: string;
+  event: string; // e.g. 'inventory.stock.low', 'order.shipped', 'purchase_order.received'
+  timestamp: string;
+  payload: string; // JSON string representation
+  tenantId: string;
+}
+

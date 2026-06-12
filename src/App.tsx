@@ -25,7 +25,13 @@ import {
   ChevronDown,
   Activity,
   User,
-  ExternalLink
+  ExternalLink,
+  Lock,
+  ShoppingCart,
+  ClipboardCheck,
+  Truck,
+  BarChart3,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -35,7 +41,7 @@ import { collection, doc, query, where, onSnapshot, setDoc, deleteDoc } from 'fi
 import { db, auth, googleProvider, signInWithPopup, signOut, OperationType, handleFirestoreError } from './utils/firebase';
 
 // Models & API Types
-import { Product, Category, Transaction, SyncState } from './types';
+import { Product, Category, Transaction, SyncState, UserRole, PurchaseOrder, CycleCountSession, SalesOrder, WebhookLog } from './types';
 import {
   getLocalProducts,
   saveLocalProduct,
@@ -54,6 +60,12 @@ import BarcodeScanner from './components/BarcodeScanner';
 import ProductForm from './components/ProductForm';
 import InventoryStats from './components/InventoryStats';
 import TransactionsHistory from './components/TransactionsHistory';
+import DirectorySSOHub from './components/DirectorySSOHub';
+import ProcurementHub from './components/ProcurementHub';
+import CycleCountHub from './components/CycleCountHub';
+import FulfillmentHub from './components/FulfillmentHub';
+import AnalyticsHub from './components/AnalyticsHub';
+import ProductLandingSite from './components/ProductLandingSite';
 
 interface Tenant {
   id: string;
@@ -91,6 +103,134 @@ const TENANTS: Tenant[] = [
   }
 ];
 
+const DEFAULT_PURCHASE_ORDERS: PurchaseOrder[] = [
+  {
+    id: 'PO-881293',
+    tenantId: 'tenant-apex',
+    supplierName: 'Vertex Digital Ltd',
+    status: 'SENT',
+    items: [
+      { productId: 'prod-001', productName: 'Wireless Earbuds Pro', sku: 'ELE-EAR-001', quantityOrdered: 20, quantityReceived: 0, unitCost: 45.00 }
+    ],
+    createdAt: new Date(Date.now() - 3 * 3600 * 1000 * 24).toISOString(),
+    updatedAt: new Date(Date.now() - 3 * 3600 * 1000 * 24).toISOString(),
+    approvalRequired: false,
+    isApproved: true
+  },
+  {
+    id: 'PO-991204',
+    tenantId: 'tenant-apex',
+    supplierName: 'Vertex Digital Ltd',
+    status: 'RECEIVED',
+    items: [
+      { productId: 'prod-005', productName: 'USB-C Fast Charger (30W)', sku: 'ELE-CHG-005', quantityOrdered: 50, quantityReceived: 50, unitCost: 6.80 }
+    ],
+    createdAt: new Date(Date.now() - 10 * 3600 * 1000 * 24).toISOString(),
+    updatedAt: new Date(Date.now() - 10 * 3600 * 1000 * 24).toISOString(),
+    invoiceAmount: 340.00,
+    threeWayMatchResult: 'MATCHED',
+    discrepancyDetails: 'Reconciled 3-way check successfully.',
+    approvalRequired: false,
+    isApproved: true
+  },
+  {
+    id: 'PO-440283',
+    tenantId: 'tenant-nova',
+    supplierName: 'ComfortZone Furniture Corp',
+    status: 'DRAFT',
+    items: [
+      { productId: 'prod-002', productName: 'Ergonomic Office Chair', sku: 'FUR-CHR-002', quantityOrdered: 12, quantityReceived: 0, unitCost: 110.05 }
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    approvalRequired: true,
+    isApproved: false
+  }
+];
+
+const DEFAULT_CYCLE_COUNTS: CycleCountSession[] = [
+  {
+    id: 'CNT-901844',
+    tenantId: 'tenant-apex',
+    name: 'Class [A] Safety Cycle Audit',
+    status: 'RECONCILED',
+    items: [
+      { productId: 'prod-001', productName: 'Wireless Earbuds Pro', sku: 'ELE-EAR-001', expectedQuantity: 14, actualQuantity: 14, variance: 0, reasonCode: 'Match' }
+    ],
+    createdAt: new Date(Date.now() - 5 * 3600 * 1000 * 24).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 3600 * 1000 * 24).toISOString(),
+    operatorUserId: 'Sarah Connor',
+    approvedBy: 'Operations Director'
+  },
+  {
+    id: 'CNT-108422',
+    tenantId: 'tenant-greensprout',
+    name: 'Class [B] Spot Discrepancy Count',
+    status: 'PENDING_APPROVAL',
+    items: [
+      { productId: 'prod-004', productName: 'Organic Coffee Beans (1kg)', sku: 'GRO-COF-004', expectedQuantity: 9, actualQuantity: 7, variance: -2, reasonCode: 'Water Damage / Spoilage' }
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    operatorUserId: 'Sarah Connor'
+  }
+];
+
+const DEFAULT_SALES_ORDERS: SalesOrder[] = [
+  {
+    id: 'Cust-SO-1192',
+    tenantId: 'tenant-apex',
+    customerName: 'The Grand Plaza Resort',
+    deliveryAddress: 'Marina Boulevard, Suite 44',
+    status: 'UNFULFILLED',
+    items: [
+      { productId: 'prod-001', productName: 'Wireless Earbuds Pro', sku: 'ELE-EAR-001', quantityOrdered: 5, quantityPicked: 0, price: 89.99 },
+      { productId: 'prod-005', productName: 'USB-C Fast Charger (30W)', sku: 'ELE-CHG-005', quantityOrdered: 10, quantityPicked: 0, price: 19.95 }
+    ],
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'Cust-SO-8822',
+    tenantId: 'tenant-apex',
+    customerName: 'Marcus Logistics Center',
+    deliveryAddress: 'Changi Logistics Park, Gate 5',
+    status: 'SHIPPED',
+    items: [
+      { productId: 'prod-003', productName: 'Stainless Steel Water Bottle', sku: 'SPO-WTR-003', quantityOrdered: 20, quantityPicked: 20, price: 24.50 }
+    ],
+    createdAt: new Date(Date.now() - 1 * 3600 * 1000 * 24).toISOString(),
+    carrierName: 'J&T Express',
+    shippingService: 'ECO Saver delivery',
+    shippingCost: 8.50,
+    trackingNumber: 'TRK-JNT-440283112',
+    trackingStep: 'IN_TRANSIT',
+    trackingLogs: [
+      '[10:15:22] Shipping Label created at origin terminal.',
+      '[11:34:00] Sorting completed. Dispatched en-route Changi Gateway.'
+    ]
+  },
+  {
+    id: 'Cust-SO-5061',
+    tenantId: 'tenant-nova',
+    customerName: 'Luxe Living Office Studio',
+    deliveryAddress: 'Orchard Orchard, Tower C',
+    status: 'DELIVERED',
+    items: [
+      { productId: 'prod-002', productName: 'Ergonomic Office Chair', sku: 'FUR-CHR-002', quantityOrdered: 2, quantityPicked: 2, price: 249.00 }
+    ],
+    createdAt: new Date(Date.now() - 4 * 3600 * 1000 * 24).toISOString(),
+    carrierName: 'Ninja Van',
+    shippingService: 'Standard Next Day courier',
+    shippingCost: 18.20,
+    trackingNumber: 'TRK-NVN-552910384',
+    trackingStep: 'DELIVERED',
+    trackingLogs: [
+      '[09:00:00] Sample consignment details synced via API.',
+      '[14:12:11] Consignment successfully delivered. Contactless handoff.'
+    ]
+  }
+];
+
 export default function App() {
   // --- Core States ---
   const [products, setProducts] = useState<Product[]>([]);
@@ -102,6 +242,17 @@ export default function App() {
   const tenantProducts = products.filter(p => p.tenantId === currentTenantId || (!p.tenantId && currentTenantId === 'tenant-apex'));
   const tenantTransactions = transactions.filter(t => t.tenantId === currentTenantId || (!t.tenantId && currentTenantId === 'tenant-apex'));
   
+  // --- Enterprise Gate state (SSO, limit check and authorizations list) ---
+  const [currentRole, setCurrentRole] = useState<UserRole>('Operations Director');
+  const [approvalLimit, setApprovalLimit] = useState<number>(1000);
+  const [isSsoEnforced, setIsSsoEnforced] = useState<boolean>(false);
+
+  // --- Dynamic Enterprise Ledgers States ---
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [countSessions, setCountSessions] = useState<CycleCountSession[]>([]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
+
   // --- Sync & Network ---
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [syncState, setSyncState] = useState<SyncState>({
@@ -114,6 +265,7 @@ export default function App() {
   // --- Layout Preferences ---
   const [deviceLayout, setDeviceLayout] = useState<'responsive' | 'mobile-sim' | 'desktop-sim'>('responsive');
   const [activeTab, setActiveTab] = useState<'all' | 'planner' | 'logs' | 'labels'>('all');
+  const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
 
   // --- Filtering & Selection ---
   const [search, setSearch] = useState<string>('');
@@ -240,6 +392,197 @@ export default function App() {
     setProducts(p);
     setTransactions(t);
     setCategories(c);
+
+    // Load Phase 2 Enterprise Ledgers
+    const storedPOs = localStorage.getItem('omnishelf_purchase_orders');
+    if (storedPOs) {
+      try {
+        setPurchaseOrders(JSON.parse(storedPOs));
+      } catch (e) {
+        setPurchaseOrders(DEFAULT_PURCHASE_ORDERS);
+      }
+    } else {
+      localStorage.setItem('omnishelf_purchase_orders', JSON.stringify(DEFAULT_PURCHASE_ORDERS));
+      setPurchaseOrders(DEFAULT_PURCHASE_ORDERS);
+    }
+
+    const storedCounts = localStorage.getItem('omnishelf_count_sessions');
+    if (storedCounts) {
+      try {
+        setCountSessions(JSON.parse(storedCounts));
+      } catch (e) {
+        setCountSessions(DEFAULT_CYCLE_COUNTS);
+      }
+    } else {
+      localStorage.setItem('omnishelf_count_sessions', JSON.stringify(DEFAULT_CYCLE_COUNTS));
+      setCountSessions(DEFAULT_CYCLE_COUNTS);
+    }
+
+    const storedSales = localStorage.getItem('omnishelf_sales_orders');
+    if (storedSales) {
+      try {
+        setSalesOrders(JSON.parse(storedSales));
+      } catch (e) {
+        setSalesOrders(DEFAULT_SALES_ORDERS);
+      }
+    } else {
+      localStorage.setItem('omnishelf_sales_orders', JSON.stringify(DEFAULT_SALES_ORDERS));
+      setSalesOrders(DEFAULT_SALES_ORDERS);
+    }
+
+    const storedWebhooks = localStorage.getItem('omnishelf_webhook_logs');
+    if (storedWebhooks) {
+      try {
+        setWebhookLogs(JSON.parse(storedWebhooks));
+      } catch (e) {
+        setWebhookLogs([]);
+      }
+    } else {
+      setWebhookLogs([]);
+    }
+  };
+
+  // --- Purchase Order Operations ---
+  const handleSavePurchaseOrder = (newPo: PurchaseOrder) => {
+    setPurchaseOrders(prev => {
+      const idx = prev.findIndex(item => item.id === newPo.id);
+      let nextList = [...prev];
+      if (idx >= 0) {
+        nextList[idx] = newPo;
+      } else {
+        nextList.unshift(newPo);
+      }
+      localStorage.setItem('omnishelf_purchase_orders', JSON.stringify(nextList));
+      return nextList;
+    });
+  };
+
+  // --- Cycle Count Operations ---
+  const handleSaveCountSession = (newSession: CycleCountSession) => {
+    setCountSessions(prev => {
+      const idx = prev.findIndex(item => item.id === newSession.id);
+      let nextList = [...prev];
+      if (idx >= 0) {
+        nextList[idx] = newSession;
+      } else {
+        nextList.unshift(newSession);
+      }
+      localStorage.setItem('omnishelf_count_sessions', JSON.stringify(nextList));
+      return nextList;
+    });
+  };
+
+  // --- Customer Sales Order Operations ---
+  const handleUpdateSalesOrder = (newOrder: SalesOrder) => {
+    setSalesOrders(prev => {
+      const idx = prev.findIndex(item => item.id === newOrder.id);
+      let nextList = [...prev];
+      if (idx >= 0) {
+        nextList[idx] = newOrder;
+      } else {
+        nextList.unshift(newOrder);
+      }
+      localStorage.setItem('omnishelf_sales_orders', JSON.stringify(nextList));
+      return nextList;
+    });
+  };
+
+  // --- Webhooks simulation triggers ---
+  const handleTriggerWebhook = (event: string, payload: any) => {
+    const freshLog: WebhookLog = {
+      id: `wh-${Math.floor(100000 + Math.random() * 900000)}`,
+      event,
+      payload: JSON.stringify(payload),
+      timestamp: new Date().toISOString(),
+      tenantId: currentTenantId
+    };
+
+    setWebhookLogs(prev => {
+      const nextList = [freshLog, ...prev].slice(0, 50); // cap to 50 logs max
+      localStorage.setItem('omnishelf_webhook_logs', JSON.stringify(nextList));
+      return nextList;
+    });
+  };
+
+  // --- Core Adjustment sync handlers ---
+  const handleReceiveInventory = (productId: string, qty: number, reason: string) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      const updatedQty = product.quantity + qty;
+      handleSaveProduct({
+        ...product,
+        quantity: updatedQty
+      }, reason);
+    }
+  };
+
+  const handleShipInventory = (productId: string, qty: number, reason: string) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      const updatedQty = Math.max(0, product.quantity - qty);
+      handleSaveProduct({
+        ...product,
+        quantity: updatedQty
+      }, reason);
+    }
+  };
+
+  const handleReturnInventory = (productId: string, qty: number, disposition: 'RESTOCKED' | 'WRITE_OFF') => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      if (disposition === 'RESTOCKED') {
+        const updatedQty = product.quantity + qty;
+        handleSaveProduct({
+          ...product,
+          quantity: updatedQty
+        }, `Inventory replenishment from authorized RMA return (restocked).`);
+      } else {
+        // Log transaction for write-off but don't add back to stock!
+        createLocalTransaction({
+          id: `tx-${Math.random().toString(36).substr(2, 9)}`,
+          productId: product.id,
+          productName: product.name,
+          type: 'OUT',
+          quantityChanged: -qty,
+          previousQuantity: product.quantity,
+          newQuantity: product.quantity,
+          reason: `RMA Damage Return Audit: product disposed due to transit water/physical defect (Written Off from accounts).`,
+          timestamp: new Date().toISOString(),
+          userId: 'offline-user',
+          tenantId: currentTenantId
+        });
+        loadDatabase();
+      }
+    }
+  };
+
+  const handleAdjustProductStock = (productId: string, newQty: number, reason: string) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      handleSaveProduct({
+        ...product,
+        quantity: newQty
+      }, reason);
+    }
+  };
+
+  const handleUpdateProductTrackingDetails = (
+    productId: string, 
+    type: 'NONE' | 'LOT' | 'SERIAL' | 'EXPIRY', 
+    lot?: string, 
+    serial?: string, 
+    expiry?: string
+  ) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      handleSaveProduct({
+        ...product,
+        trackingType: type,
+        lotNumber: lot,
+        serialNumber: serial,
+        expiryDate: expiry
+      }, `Adjusted safety tracking details on SKU ledger.`);
+    }
   };
 
   const showNotification = (message: string, type: 'success' | 'info' | 'warning' = 'info') => {
@@ -535,6 +878,58 @@ export default function App() {
     switch (activeTab) {
       case 'planner':
         return <InventoryStats products={tenantProducts} onRestockClick={handleRestockOrder} forceMobile={forceMobile} />;
+      case 'procurement':
+        return (
+          <ProcurementHub
+            products={products}
+            currentRole={currentRole}
+            approvalLimit={approvalLimit}
+            purchaseOrders={purchaseOrders}
+            onReceiveInventory={handleReceiveInventory}
+            onSavePurchaseOrder={handleSavePurchaseOrder}
+          />
+        );
+      case 'count':
+        return (
+          <CycleCountHub
+            products={tenantProducts}
+            currentRole={currentRole}
+            onAdjustProductStock={handleAdjustProductStock}
+            onUpdateProductTrackingDetails={handleUpdateProductTrackingDetails}
+            countSessions={countSessions}
+            onSaveCountSession={handleSaveCountSession}
+          />
+        );
+      case 'fulfillment':
+        return (
+          <FulfillmentHub
+            salesOrders={salesOrders}
+            currentRole={currentRole}
+            onUpdateSalesOrder={handleUpdateSalesOrder}
+            onShipInventory={handleShipInventory}
+            onReturnInventory={handleReturnInventory}
+          />
+        );
+      case 'analytics':
+        return (
+          <AnalyticsHub
+            products={tenantProducts}
+            currentRole={currentRole}
+            webhookLogs={webhookLogs}
+            onTriggerWebhook={handleTriggerWebhook}
+          />
+        );
+      case 'directory-sso':
+        return (
+          <DirectorySSOHub
+            currentRole={currentRole}
+            onChangeRole={setCurrentRole}
+            approvalLimit={approvalLimit}
+            onChangeApprovalLimit={setApprovalLimit}
+            isSsoEnforced={isSsoEnforced}
+            onToggleSso={() => setIsSsoEnforced(prev => !prev)}
+          />
+        );
       case 'logs':
         return <TransactionsHistory transactions={tenantTransactions} forceMobile={forceMobile} onClearLogs={() => {
           const otherTenantTxs = transactions.filter(t => t.tenantId !== currentTenantId && (t.tenantId || currentTenantId !== 'tenant-apex'));
@@ -964,10 +1359,12 @@ export default function App() {
             </div>
 
             {/* Sidebar Navigation */}
-            <div className="space-y-1">
+            <div className="space-y-1 overflow-y-auto max-h-[50vh] pr-1 scrollbar-thin scrollbar-thumb-slate-700">
+              <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase block pl-3 pb-1 pt-2">Core Inventory</span>
+
               <button
                 onClick={() => setActiveTab('all')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'all' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'all' ? 'bg-blue-600 text-white font-bold' : 'text-slate-450 text-slate-450 hover:text-slate-200 text-slate-400 hover:bg-slate-800'}`}
               >
                 <div className="flex items-center gap-2.5">
                   <Package className="w-4 h-4" />
@@ -978,35 +1375,98 @@ export default function App() {
 
               <button
                 onClick={() => setActiveTab('planner')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'planner' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'planner' ? 'bg-blue-600 text-white font-bold' : 'text-slate-415 text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
               >
                 <div className="flex items-center gap-2.5">
                   <Activity className="w-4 h-4" />
-                  <span>Replenish Planner</span>
+                  <span>Safety Replenish</span>
                 </div>
                 {tenantProducts.some(p => p.quantity <= p.minStock) && (
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 )}
               </button>
 
               <button
-                onClick={() => setActiveTab('logs')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'logs' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                onClick={() => setActiveTab('labels')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'labels' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
               >
                 <div className="flex items-center gap-2.5">
-                  <Activity className="w-4 h-4 text-blue-400" />
-                  <span>Audit Logs</span>
+                  <Printer className="w-4 h-4" />
+                  <span>Print Labels</span>
+                </div>
+                <ChevronRight className="w-3 h-3 opacity-60" />
+              </button>
+
+              <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase block pl-3 pb-1 pt-4">Phase 2 Enterprise</span>
+
+              <button
+                onClick={() => setActiveTab('procurement')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'procurement' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>Procurement (PO)</span>
+                </div>
+                {purchaseOrders.some(po => po.approvalRequired && !po.isApproved) && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('count')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'count' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <ClipboardCheck className="w-4 h-4" />
+                  <span>Cycle Counts</span>
+                </div>
+                {countSessions.some(count => count.status === 'PENDING_APPROVAL') && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('fulfillment')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'fulfillment' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Truck className="w-4 h-4" />
+                  <span>Fulfillment Box</span>
+                </div>
+                {salesOrders.some(so => so.status === 'UNFULFILLED') && (
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'analytics' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Webbooks & Reports</span>
                 </div>
                 <ChevronRight className="w-3 h-3 opacity-60" />
               </button>
 
               <button
-                onClick={() => setActiveTab('labels')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'labels' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                onClick={() => setActiveTab('directory-sso')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'directory-sso' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
               >
                 <div className="flex items-center gap-2.5">
-                  <Printer className="w-4 h-4" />
-                  <span>Interactive Labels</span>
+                  <Lock className="w-4 h-4 text-amber-400" />
+                  <span>Directory & SSO Gate</span>
+                </div>
+                <ChevronRight className="w-3 h-3 opacity-60" />
+              </button>
+
+              <button
+                onClick={() => setActiveTab('logs')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'logs' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  <span>System Audit Logs</span>
                 </div>
                 <ChevronRight className="w-3 h-3 opacity-60" />
               </button>
@@ -1055,12 +1515,12 @@ export default function App() {
         </main>
 
         {/* Interactive Bottom Navbar (Only on Mobile Layout) */}
-        <nav className="block md:hidden fixed bottom-0 left-0 right-0 border-t border-slate-850 bg-slate-950/95 backdrop-blur-md z-30">
-          <div className="grid grid-cols-4 py-2">
+        <nav className="block md:hidden fixed bottom-0 left-0 right-0 border-t border-slate-800 bg-slate-905 bg-slate-900/95 backdrop-blur-md z-30 overflow-x-auto font-sans scrollbar-none">
+          <div className="flex items-center gap-6 px-4 py-2.5 min-w-max">
             
             <button
               onClick={() => setActiveTab('all')}
-              className={`flex flex-col items-center justify-center gap-1.5 py-1 ${activeTab === 'all' ? 'text-indigo-400 font-bold' : 'text-slate-500'}`}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 ${activeTab === 'all' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
             >
               <Package className="w-4 h-4" />
               <span className="text-[9px]">Inventory</span>
@@ -1068,29 +1528,78 @@ export default function App() {
 
             <button
               onClick={() => setActiveTab('planner')}
-              className={`flex flex-col items-center justify-center gap-1.5 py-1 relative ${activeTab === 'planner' ? 'text-indigo-400 font-bold' : 'text-slate-500'}`}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 relative ${activeTab === 'planner' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
             >
               <Activity className="w-4 h-4" />
               {tenantProducts.some(p => p.quantity <= p.minStock) && (
-                <span className="absolute top-1 right-6 w-1.5 h-1.5 rounded-full bg-red-400" />
+                <span className="absolute top-0.5 right-1 w-1.5 h-1.5 rounded-full bg-red-500" />
               )}
-              <span className="text-[9px]">Planner</span>
+              <span className="text-[9px]">Safety</span>
             </button>
 
             <button
-              onClick={() => setActiveTab('logs')}
-              className={`flex flex-col items-center justify-center gap-1.5 py-1 ${activeTab === 'logs' ? 'text-indigo-400 font-bold' : 'text-slate-500'}`}
+              onClick={() => setActiveTab('procurement')}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 relative ${activeTab === 'procurement' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
             >
-              <Activity className="w-4 h-4 text-emerald-400" />
-              <span className="text-[9px]">Audits</span>
+              <ShoppingCart className="w-4 h-4" />
+              {purchaseOrders.some(po => po.approvalRequired && !po.isApproved) && (
+                <span className="absolute top-0.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
+              )}
+              <span className="text-[9px]">Procure</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('count')}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 relative ${activeTab === 'count' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
+            >
+              <ClipboardCheck className="w-4 h-4" />
+              {countSessions.some(count => count.status === 'PENDING_APPROVAL') && (
+                <span className="absolute top-0.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
+              )}
+              <span className="text-[9px]">Counts</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('fulfillment')}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 relative ${activeTab === 'fulfillment' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
+            >
+              <Truck className="w-4 h-4" />
+              {salesOrders.some(so => so.status === 'UNFULFILLED') && (
+                <span className="absolute top-0.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+              )}
+              <span className="text-[9px]">Fulfil</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 ${activeTab === 'analytics' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span className="text-[9px]">API & Reps</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('directory-sso')}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 ${activeTab === 'directory-sso' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
+            >
+              <Lock className="w-4 h-4 text-amber-400" />
+              <span className="text-[9px]">SSO & RBAC</span>
             </button>
 
             <button
               onClick={() => setActiveTab('labels')}
-              className={`flex flex-col items-center justify-center gap-1.5 py-1 ${activeTab === 'labels' ? 'text-indigo-400 font-bold' : 'text-slate-500'}`}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 ${activeTab === 'labels' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
             >
               <Printer className="w-4 h-4" />
               <span className="text-[9px]">Labels</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 ${activeTab === 'logs' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
+            >
+              <Activity className="w-4 h-4 text-emerald-400" />
+              <span className="text-[9px]">Logs</span>
             </button>
 
           </div>
@@ -1099,6 +1608,23 @@ export default function App() {
       </div>
     );
   };
+
+  if (showLandingPage) {
+    return (
+      <ProductLandingSite
+        onEnterDemo={(role, tenantId) => {
+          setCurrentRole(role);
+          setCurrentTenantId(tenantId);
+          setShowLandingPage(false);
+          showNotification(`Demo Session Activated: Operating as ${role} for ${TENANTS.find(t => t.id === tenantId)?.name}!`, 'success');
+        }}
+        onEnterQuick={() => {
+          setShowLandingPage(false);
+          showNotification('Entered sandbox mode with default profile credentials.', 'info');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F3F4F6] text-[#111827] flex flex-col font-sans select-none antialiased selection:bg-blue-650 selection:text-white">
@@ -1113,6 +1639,18 @@ export default function App() {
               <span>OMNISHELF</span>
             </span>
           </div>
+
+          <button
+            onClick={() => {
+              setShowLandingPage(true);
+              showNotification('Redirected to the Product Explainer and features portal.', 'info');
+            }}
+            className="px-2.5 py-1 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-lg text-[10px] flex items-center gap-1 bg-slate-50 transition cursor-pointer"
+            title="Return to the feature list design details and tour site"
+          >
+            <Sparkles className="w-3 h-3 text-indigo-500 animate-pulse" />
+            <span>Product Tour Site</span>
+          </button>
 
           <div className="h-5 w-px bg-gray-200 hidden sm:block" />
 
