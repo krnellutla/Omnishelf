@@ -1,0 +1,6 @@
+{
+  "name": "OmniShelf",
+  "description": "Multi-tenant real-time retail inventory platform built with barcode scanning, secure data isolation, and cloud sync ledger.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
