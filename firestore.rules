@@ -28,8 +28,8 @@ service cloud.firestore {
       return data.keys().hasAll(['id', 'name', 'price', 'quantity', 'createdBy'])
         && data.id is string && data.id.size() <= 128
         && data.name is string && data.name.size() <= 100
-        && (data.price is number || data.price is int) && data.price >= 0
-        && (data.quantity is number || data.quantity is int)
+        && (data.price is int || data.price is float) && data.price >= 0
+        && (data.quantity is int || data.quantity is float)
         && data.createdBy is string && data.createdBy.size() <= 128;
     }
 
@@ -38,7 +38,7 @@ service cloud.firestore {
         && data.id is string && data.id.size() <= 128
         && data.productId is string && data.productId.size() <= 128
         && data.type is string && (data.type == 'IN' || data.type == 'OUT' || data.type == 'ADJUSTMENT')
-        && (data.quantityChanged is number || data.quantityChanged is int) && data.quantityChanged >= 0
+        && (data.quantityChanged is int || data.quantityChanged is float) && data.quantityChanged >= 0
         && data.userId is string && data.userId.size() <= 128;
     }
 
