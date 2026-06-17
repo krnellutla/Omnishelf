@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
-import { X, Barcode, HelpCircle, Sparkles, FolderPlus, Info } from 'lucide-react';
+import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
+import { X, Barcode, HelpCircle, Sparkles, FolderPlus, Info, Save, RotateCcw } from 'lucide-react';
 import { Product, Category } from '../types';
 
 interface ProductFormProps {
@@ -32,15 +32,20 @@ export default function ProductForm({
   const [minStock, setMinStock] = useState('5');
   const [supplier, setSupplier] = useState('');
   const [location, setLocation] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   
   const [newCatName, setNewCatName] = useState('');
   const [showAddCat, setShowAddCat] = useState(false);
   const [reason, setReason] = useState('');
 
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'restored'>('idle');
+
   const isEdit = !!product;
 
-  // Sync state if editing
-  useEffect(() => {
+  const handleResetToDefault = () => {
+    const key = product ? `logiledger_draft_edit_${product.id}` : 'logiledger_draft_new';
+    localStorage.removeItem(key);
+    
     if (product) {
       setName(product.name);
       setSku(product.sku);
@@ -52,8 +57,9 @@ export default function ProductForm({
       setMinStock(product.minStock.toString());
       setSupplier(product.supplier);
       setLocation(product.location);
+      setImageUrl(product.imageUrl || '');
+      setReason('');
     } else {
-      // Pre-fill some defaults or auto-generate barcode/sku
       setName('');
       const tempId = Math.floor(100000 + Math.random() * 900000).toString();
       setSku(`SKU-${tempId}`);
@@ -65,8 +71,103 @@ export default function ProductForm({
       setMinStock('5');
       setSupplier('');
       setLocation('');
+      setImageUrl('');
+      setReason('');
     }
-  }, [product, categories]);
+    setAutoSaveStatus('idle');
+  };
+
+  // Sync state or restore draft if found in localStorage
+  useEffect(() => {
+    const key = product ? `logiledger_draft_edit_${product.id}` : 'logiledger_draft_new';
+    const saved = localStorage.getItem(key);
+    
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setName(parsed.name ?? '');
+        setSku(parsed.sku ?? '');
+        setBarcode(parsed.barcode ?? '');
+        setCategory(parsed.category ?? '');
+        setPrice(parsed.price ?? '0.00');
+        setCost(parsed.cost ?? '0.00');
+        setQuantity(parsed.quantity ?? '0');
+        setMinStock(parsed.minStock ?? '5');
+        setSupplier(parsed.supplier ?? '');
+        setLocation(parsed.location ?? '');
+        setImageUrl(parsed.imageUrl ?? '');
+        setReason(parsed.reason ?? '');
+        setAutoSaveStatus('restored');
+        // Let it fade out slightly later
+        const timer = setTimeout(() => setAutoSaveStatus('idle'), 4500);
+        return () => clearTimeout(timer);
+      } catch (e) {
+        console.warn('Could not parse saved draft', e);
+      }
+    }
+
+    if (product) {
+      setName(product.name);
+      setSku(product.sku);
+      setBarcode(product.barcode);
+      setCategory(product.category);
+      setPrice(product.price.toString());
+      setCost(product.cost.toString());
+      setQuantity(product.quantity.toString());
+      setMinStock(product.minStock.toString());
+      setSupplier(product.supplier);
+      setLocation(product.location);
+      setImageUrl(product.imageUrl || '');
+      setReason('');
+    } else {
+      setName('');
+      const tempId = Math.floor(100000 + Math.random() * 900000).toString();
+      setSku(`SKU-${tempId}`);
+      setBarcode(`4006381${tempId}`);
+      setCategory(categories[0]?.name || 'Electronics');
+      setPrice('10.00');
+      setCost('5.00');
+      setQuantity('10');
+      setMinStock('5');
+      setSupplier('');
+      setLocation('');
+      setImageUrl('');
+      setReason('');
+    }
+  }, [product?.id, categories]);
+
+  // Periodic Auto-Save Draft to localStorage (Runs every 4 seconds when any value changes)
+  useEffect(() => {
+    // Check if we have any editable user content before triggering save
+    const hasValues = !!(name || supplier || location || reason || category || imageUrl);
+    if (!hasValues) return;
+
+    const interval = setInterval(() => {
+      const key = product ? `logiledger_draft_edit_${product.id}` : 'logiledger_draft_new';
+      
+      const draftData = {
+        name,
+        sku,
+        barcode,
+        category,
+        price,
+        cost,
+        quantity,
+        minStock,
+        supplier,
+        location,
+        imageUrl,
+        reason
+      };
+
+      localStorage.setItem(key, JSON.stringify(draftData));
+      setAutoSaveStatus('saved');
+      const timer = setTimeout(() => setAutoSaveStatus('idle'), 1500);
+      return () => clearTimeout(timer);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [product?.id, name, sku, barcode, category, price, cost, quantity, minStock, supplier, location, imageUrl, reason]);
 
   // Handle dynamic SKU generation if typing name (only when creating)
   const handleNameChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -128,9 +229,13 @@ export default function ProductForm({
       minStock: Math.max(0, parseInt(minStock, 10) || 0),
       supplier: supplier.trim() || 'N/A',
       location: location.trim() || 'Default Shelf',
+      imageUrl: imageUrl.trim() || undefined,
       updatedAt: new Date().toISOString(),
       createdBy: product?.createdBy || 'tester-user'
     };
+
+    const key = product ? `logiledger_draft_edit_${product.id}` : 'logiledger_draft_new';
+    localStorage.removeItem(key);
 
     onSave(parsedProduct, reason.trim() || undefined);
   };
@@ -328,7 +433,7 @@ export default function ProductForm({
 
           {/* Logistics */}
           <div className="space-y-4 pt-1">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-400">Logistics & Sourcing</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-400">Logistics, Sourcing & Media</h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Supplier */}
@@ -354,6 +459,41 @@ export default function ProductForm({
                   className="bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-blue-500 rounded-xl px-3.5 py-2 text-xs text-slate-250 outline-none transition"
                 />
               </div>
+
+              {/* Product Image URL */}
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs text-slate-400 font-medium flex items-center justify-between">
+                  <span>Product Image Thumbnail URL (Optional)</span>
+                  {imageUrl && (
+                    <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                      ● Valid Image Specified
+                    </span>
+                  )}
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    placeholder="e.g. https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=120"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    className="flex-1 bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-blue-500 rounded-xl px-3.5 py-2 text-xs text-slate-250 outline-none transition"
+                  />
+                  {imageUrl && (
+                    <div className="w-9 h-9 border border-slate-800 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                      <img
+                        src={imageUrl}
+                        alt="Preview"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "https://placehold.co/100x100?text=Error";
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -378,8 +518,44 @@ export default function ProductForm({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-800/80 bg-slate-950/20 flex items-center justify-between">
-          <div className="text-[10px] text-slate-400 italic">
-            * Indicates required fields
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <span className="text-[10px] text-slate-400 italic">
+              * Indicates required fields
+            </span>
+            {autoSaveStatus !== 'idle' && (
+              <span className={`text-[10.5px] font-semibold px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 transition-all duration-300 ${
+                autoSaveStatus === 'saving' || autoSaveStatus === 'saved'
+                  ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400 animate-pulse'
+                  : 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+              }`}>
+                {autoSaveStatus === 'saving' && (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+                    Saving Draft...
+                  </>
+                )}
+                {autoSaveStatus === 'saved' && (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    Draft Auto-Saved
+                  </>
+                )}
+                {autoSaveStatus === 'restored' && (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    Draft Restored
+                    <button
+                      type="button"
+                      onClick={handleResetToDefault}
+                      className="ml-1.5 text-[9px] hover:text-red-400 hover:underline cursor-pointer flex items-center gap-0.5 font-bold uppercase tracking-wider text-amber-400/80"
+                      title="Discard local backup"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" /> Discard
+                    </button>
+                  </>
+                )}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <button

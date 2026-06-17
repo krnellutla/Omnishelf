@@ -1506,16 +1506,34 @@ export default function App() {
 
                         {/* Name & Barcode */}
                         <td className="py-3.5 px-4 font-sans">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-gray-955 text-gray-900 text-sm">{p.name}</span>
-                            <span className="font-mono text-[9px] text-gray-400 mt-1 flex items-center gap-1.5">
-                              <span>SKU: <strong className="text-gray-600 font-normal">{p.sku}</strong></span>
-                              <span>•</span>
-                              <span>Bar: <strong className="text-blue-600 font-normal cursor-pointer select-all hover:underline" title="Click to copy barcode" onClick={() => {
-                                navigator.clipboard.writeText(p.barcode);
-                                showNotification('Barcode copied to clipboard!', 'info');
-                              }}>{p.barcode}</strong></span>
-                            </span>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
+                              {p.imageUrl ? (
+                                <img
+                                  src={p.imageUrl}
+                                  alt={p.name}
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=80&q=50";
+                                  }}
+                                />
+                              ) : (
+                                <Package className="w-4 h-4 text-slate-300 dark:text-slate-600 stroke-[1.5]" />
+                              )}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-semibold text-gray-955 text-gray-900 text-sm truncate max-w-[200px]" title={p.name}>{p.name}</span>
+                              <span className="font-mono text-[9px] text-gray-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span>SKU: <strong className="text-gray-600 dark:text-gray-350 font-normal">{p.sku}</strong></span>
+                                <span>•</span>
+                                <span>Bar: <strong className="text-blue-600 dark:text-blue-400 font-normal cursor-pointer select-all hover:underline" title="Click to copy barcode" onClick={() => {
+                                  navigator.clipboard.writeText(p.barcode);
+                                  showNotification('Barcode copied to clipboard!', 'info');
+                                }}>{p.barcode}</strong></span>
+                              </span>
+                            </div>
                           </div>
                         </td>
 
@@ -1637,11 +1655,29 @@ export default function App() {
                         />
                       </div>
 
+                      {/* Image Thumbnail in Mobile */}
+                      <div className="w-12 h-12 rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
+                        {p.imageUrl ? (
+                          <img
+                            src={p.imageUrl}
+                            alt={p.name}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=80&q=50";
+                            }}
+                          />
+                        ) : (
+                          <Package className="w-5 h-5 text-slate-300 dark:text-slate-600 stroke-[1.5]" />
+                        )}
+                      </div>
+
                       <div className="flex-1 flex items-start justify-between gap-3 min-w-0">
                         <div>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <h4 className="font-bold text-gray-900 text-sm leading-snug">{p.name}</h4>
-                            <span className="text-[8px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-bold uppercase tracking-wider shrink-0">
+                            <span className="text-[8px] bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-gray-600 dark:text-slate-400 font-bold uppercase tracking-wider shrink-0">
                               {p.category}
                             </span>
                           </div>
