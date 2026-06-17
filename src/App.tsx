@@ -2026,7 +2026,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] text-[#111827] flex flex-col font-sans select-none antialiased selection:bg-blue-650 selection:text-white">
+    <div className="min-h-screen bg-slate-50/80 text-slate-900 flex flex-col font-sans select-none antialiased selection:bg-indigo-600 selection:text-white">
       
       {/* Universal Top Header Bar (Status & Device Simulator Control) */}
       <header className="px-4 sm:px-6 py-3 border-b border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-xs">
