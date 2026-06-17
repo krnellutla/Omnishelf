@@ -404,7 +404,7 @@ export default function App() {
     setCategories(c);
 
     // Load Phase 2 Enterprise Ledgers
-    const storedPOs = localStorage.getItem('omnishelf_purchase_orders');
+    const storedPOs = localStorage.getItem('logiledger_purchase_orders');
     if (storedPOs) {
       try {
         setPurchaseOrders(JSON.parse(storedPOs));
@@ -412,11 +412,11 @@ export default function App() {
         setPurchaseOrders(DEFAULT_PURCHASE_ORDERS);
       }
     } else {
-      localStorage.setItem('omnishelf_purchase_orders', JSON.stringify(DEFAULT_PURCHASE_ORDERS));
+      localStorage.setItem('logiledger_purchase_orders', JSON.stringify(DEFAULT_PURCHASE_ORDERS));
       setPurchaseOrders(DEFAULT_PURCHASE_ORDERS);
     }
 
-    const storedCounts = localStorage.getItem('omnishelf_count_sessions');
+    const storedCounts = localStorage.getItem('logiledger_count_sessions');
     if (storedCounts) {
       try {
         setCountSessions(JSON.parse(storedCounts));
@@ -424,11 +424,11 @@ export default function App() {
         setCountSessions(DEFAULT_CYCLE_COUNTS);
       }
     } else {
-      localStorage.setItem('omnishelf_count_sessions', JSON.stringify(DEFAULT_CYCLE_COUNTS));
+      localStorage.setItem('logiledger_count_sessions', JSON.stringify(DEFAULT_CYCLE_COUNTS));
       setCountSessions(DEFAULT_CYCLE_COUNTS);
     }
 
-    const storedSales = localStorage.getItem('omnishelf_sales_orders');
+    const storedSales = localStorage.getItem('logiledger_sales_orders');
     if (storedSales) {
       try {
         setSalesOrders(JSON.parse(storedSales));
@@ -436,11 +436,11 @@ export default function App() {
         setSalesOrders(DEFAULT_SALES_ORDERS);
       }
     } else {
-      localStorage.setItem('omnishelf_sales_orders', JSON.stringify(DEFAULT_SALES_ORDERS));
+      localStorage.setItem('logiledger_sales_orders', JSON.stringify(DEFAULT_SALES_ORDERS));
       setSalesOrders(DEFAULT_SALES_ORDERS);
     }
 
-    const storedWebhooks = localStorage.getItem('omnishelf_webhook_logs');
+    const storedWebhooks = localStorage.getItem('logiledger_webhook_logs');
     if (storedWebhooks) {
       try {
         setWebhookLogs(JSON.parse(storedWebhooks));
@@ -462,7 +462,7 @@ export default function App() {
       } else {
         nextList.unshift(newPo);
       }
-      localStorage.setItem('omnishelf_purchase_orders', JSON.stringify(nextList));
+      localStorage.setItem('logiledger_purchase_orders', JSON.stringify(nextList));
       return nextList;
     });
   };
@@ -477,7 +477,7 @@ export default function App() {
       } else {
         nextList.unshift(newSession);
       }
-      localStorage.setItem('omnishelf_count_sessions', JSON.stringify(nextList));
+      localStorage.setItem('logiledger_count_sessions', JSON.stringify(nextList));
       return nextList;
     });
   };
@@ -492,7 +492,7 @@ export default function App() {
       } else {
         nextList.unshift(newOrder);
       }
-      localStorage.setItem('omnishelf_sales_orders', JSON.stringify(nextList));
+      localStorage.setItem('logiledger_sales_orders', JSON.stringify(nextList));
       return nextList;
     });
   };
@@ -509,7 +509,7 @@ export default function App() {
 
     setWebhookLogs(prev => {
       const nextList = [freshLog, ...prev].slice(0, 50); // cap to 50 logs max
-      localStorage.setItem('omnishelf_webhook_logs', JSON.stringify(nextList));
+      localStorage.setItem('logiledger_webhook_logs', JSON.stringify(nextList));
       return nextList;
     });
   };
@@ -2035,7 +2035,7 @@ export default function App() {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-1 bg-slate-900 text-white font-black rounded-lg text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-xs font-mono">
-              <span>OMNISHELF</span>
+              <span>LOGILEDGER</span>
             </span>
           </div>
 

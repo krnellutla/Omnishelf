@@ -68,7 +68,7 @@ export default function ProductLandingSite({ onEnterDemo, onEnterQuick }: Produc
   });
 
   useEffect(() => {
-    const storedChecklist = localStorage.getItem('omnishelf_onboarding_check');
+    const storedChecklist = localStorage.getItem('logiledger_onboarding_check');
     if (storedChecklist) {
       try {
         setChecklist(JSON.parse(storedChecklist));
@@ -79,7 +79,7 @@ export default function ProductLandingSite({ onEnterDemo, onEnterQuick }: Produc
   const handleToggleCheck = (key: keyof typeof checklist) => {
     const updated = { ...checklist, [key]: !checklist[key] };
     setChecklist(updated);
-    localStorage.setItem('omnishelf_onboarding_check', JSON.stringify(updated));
+    localStorage.setItem('logiledger_onboarding_check', JSON.stringify(updated));
   };
 
   const handleCopy = (text: string, label: string) => {
@@ -136,7 +136,7 @@ export default function ProductLandingSite({ onEnterDemo, onEnterQuick }: Produc
     },
     {
       q: 'Can I test the barcode engine without a dedicated hardware scanner?',
-      a: 'Absolutely! OmniShelf features a dual-mode system. You can simulate optical scanner lasers using your webcam feed (fully integrated), or type mock EAN/UPC barcodes to test rapid intake and automatic state adjustments.',
+      a: 'Absolutely! LogiLedger features a dual-mode system. You can simulate optical scanner lasers using your webcam feed (fully integrated), or type mock EAN/UPC barcodes to test rapid intake and automatic state adjustments.',
     },
     {
       q: 'How does the offline ledger operate?',
@@ -180,7 +180,7 @@ export default function ProductLandingSite({ onEnterDemo, onEnterQuick }: Produc
   "ssoEnforced": true,
   "defaultRole": "Fulfillment Coordinator",
   "managerApprovalLimit": 1500,
-  "samlIdentityEntityId": "https://auth.omnishelf.corp/sso/metadata",
+  "samlIdentityEntityId": "https://auth.logiledger.corp/sso/metadata",
   "rbacMappings": {
     "Operations Director": ["all_permissions", "override_audits", "unrestricted_approvals"],
     "Fulfillment Coordinator": ["pick_pack_ship", "cycle_counts_pending"]
@@ -212,9 +212,9 @@ window.addEventListener('keypress', (event) => {
       id: 'sync',
       category: 'Database & Sync',
       title: 'Offline Conflict Reconciliation (3-Way Match)',
-      summary: 'How OmniShelf resolves conflicting updates during temporary network outages.',
+      summary: 'How LogiLedger resolves conflicting updates during temporary network outages.',
       steps: [
-        'OmniShelf uses a standard local-first client cache configured to function seamlessly offline.',
+        'LogiLedger uses a standard local-first client cache configured to function seamlessly offline.',
         'When network latency is simulated or real disconnection occurs, changes are deferred to local storage registers.',
         'Upon reconnecting, the sync manager evaluates timestamps and transaction counts to issue local-to-cloud atomic operations.',
         'Purchase orders are verified using our strict 3-way match logic (comparing Ordered PO units, Intake Warehouse Receipt metrics, and the Billing Cost Invoice lines).'
@@ -239,12 +239,12 @@ function validateThreeWayMatch(purchaseOrder) {
 
   // Config Generator Output schema
   const previewJsonOutput = `{
-  "platform": "OmniShelf Enterprise",
+  "platform": "LogiLedger Enterprise",
   "version": "v2.4-stable",
   "activeTenant": {
     "id": "${cfgTenant}",
     "name": "${demoTenants.find(t => t.id === cfgTenant)?.name || ''}",
-    "domain": "${cfgTenant}.omnishelf.app"
+    "domain": "${cfgTenant}.logiledger.app"
   },
   "security": {
     "ssoGateEnforced": ${cfgSsoMode},
@@ -276,7 +276,7 @@ function validateThreeWayMatch(purchaseOrder) {
         <div className="flex items-center gap-3">
           <div className="px-3 py-1.5 bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 text-white font-black rounded-xl text-xs uppercase tracking-wider flex items-center font-mono gap-1.5 shadow-lg shadow-indigo-900/20">
             <Layers className="w-3.5 h-3.5" />
-            <span>OMNISHELF</span>
+            <span>LOGILEDGER</span>
           </div>
           <span className="text-xs text-slate-500 font-mono hidden md:inline">v2.4 Enterprise Ledger</span>
         </div>
@@ -641,7 +641,7 @@ function validateThreeWayMatch(purchaseOrder) {
               SaaS Operational Core
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-3 leading-relaxed">
-              OmniShelf integrates seven critical inventory modules into a low-latency, resilient dashboard.
+              LogiLedger integrates seven critical inventory modules into a low-latency, resilient dashboard.
             </p>
           </div>
 
@@ -674,7 +674,7 @@ function validateThreeWayMatch(purchaseOrder) {
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="text-[10px] font-black tracking-widest text-emerald-400 uppercase bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 inline-block mb-2">Self-Help Onboarding Center</span>
             <h2 className="text-3xl md:text-4xl font-black tracking-tight text-white">
-              OmniShelf Client Integration Portal
+              LogiLedger Client Integration Portal
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-3 leading-relaxed">
               Complete, professional technical documentation, code snippets, copyable templates, and onboarding checklist to setup, authenticate, and connect your client nodes.
@@ -1056,7 +1056,7 @@ function validateThreeWayMatch(purchaseOrder) {
         </div>
 
         <div className="text-slate-600 text-[10px] uppercase font-bold tracking-widest mt-12 mb-2 font-mono">
-          OMNISHELF LOGISTICS SOFTWARE GROUP
+          LOGILEDGER LOGISTICS SOFTWARE GROUP
         </div>
         <p className="text-[10px] text-slate-500">
           Decoupled multi-tenant database ledger synchronization. Developed using React & Vite standard environments.

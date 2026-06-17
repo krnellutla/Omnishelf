@@ -29,18 +29,18 @@ export default function CopilotHub({
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedModel, setSelectedModel] = useState<string>(() => {
-    return localStorage.getItem('omnishelf_copilot_model') || 'gemini-3.5-flash';
+    return localStorage.getItem('logiledger_copilot_model') || 'gemini-3.5-flash';
   });
 
   const handleModelChange = (modelId: string) => {
     setSelectedModel(modelId);
-    localStorage.setItem('omnishelf_copilot_model', modelId);
-    showNotification(`Switched OmniShelf copilot to ${modelId}`, 'success');
+    localStorage.setItem('logiledger_copilot_model', modelId);
+    showNotification(`Switched LogiLedger copilot to ${modelId}`, 'success');
   };
 
   // Load chat history from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem(`omnishelf_chats_${currentTenantId}`);
+    const saved = localStorage.getItem(`logiledger_chats_${currentTenantId}`);
     if (saved) {
       setMessages(JSON.parse(saved));
     } else {
@@ -48,7 +48,7 @@ export default function CopilotHub({
       const welcome: ChatMessage = {
         id: 'welcome',
         sender: 'assistant',
-        text: `Greetings! I am your **OmniShelf AI Logistics Copilot**. 
+        text: `Greetings! I am your **LogiLedger AI Logistics Copilot**. 
 
 I have fully ingested your real-time ledger context including catalog listings, active stock lines, and transaction logs.
 
@@ -65,7 +65,7 @@ How can I assist you today? Here are some tasks I can automate for you:
   // Save chat history
   const saveMessages = (newMsgs: ChatMessage[]) => {
     setMessages(newMsgs);
-    localStorage.setItem(`omnishelf_chats_${currentTenantId}`, JSON.stringify(newMsgs));
+    localStorage.setItem(`logiledger_chats_${currentTenantId}`, JSON.stringify(newMsgs));
   };
 
   // Scroll to bottom
@@ -141,7 +141,7 @@ ${err.message || 'Verification of external server socket timed out.'}
   };
 
   const clearHistory = () => {
-    localStorage.removeItem(`omnishelf_chats_${currentTenantId}`);
+    localStorage.removeItem(`logiledger_chats_${currentTenantId}`);
     const welcome: ChatMessage = {
       id: 'welcome',
       sender: 'assistant',
@@ -308,7 +308,7 @@ ${err.message || 'Verification of external server socket timed out.'}
             </div>
             <div className="rounded-2xl px-4 py-3 text-xs bg-gray-50 border border-gray-150 text-gray-500 italic flex items-center gap-2">
               <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-              <span>OmniShelf Copilot is analyzing ledger anomalies...</span>
+              <span>LogiLedger Copilot is analyzing ledger anomalies...</span>
             </div>
           </div>
         )}

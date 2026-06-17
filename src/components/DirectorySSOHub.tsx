@@ -22,10 +22,10 @@ export default function DirectorySSOHub({
   const [activeTab, setActiveTab] = useState<'sso' | 'roles' | 'policies'>('sso');
   const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SYNCING' | 'SUCCESS'>('IDLE');
   const [syncRecords, setSyncRecords] = useState<any[]>([
-    { id: '1', name: 'James Carter', email: 'j.carter@omnishelf.internal', status: 'Synced', role: 'Operations Director', provider: 'Okta SSO' },
-    { id: '2', name: 'Sarah Connor', email: 's.connor@omnishelf.internal', status: 'Synced', role: 'Warehouse Manager', provider: 'Okta SSO' },
-    { id: '3', name: 'Marcus Sterling', email: 'm.sterling@omnishelf.internal', status: 'Synced', role: 'Finance Controller', provider: 'Okta SSO' },
-    { id: '4', name: 'Emily Thorne', email: 'e.thorne@omnishelf.internal', status: 'Synced', role: 'Fulfillment Coordinator', provider: 'Okta SSO' }
+    { id: '1', name: 'James Carter', email: 'j.carter@logiledger.internal', status: 'Synced', role: 'Operations Director', provider: 'Okta SSO' },
+    { id: '2', name: 'Sarah Connor', email: 's.connor@logiledger.internal', status: 'Synced', role: 'Warehouse Manager', provider: 'Okta SSO' },
+    { id: '3', name: 'Marcus Sterling', email: 'm.sterling@logiledger.internal', status: 'Synced', role: 'Finance Controller', provider: 'Okta SSO' },
+    { id: '4', name: 'Emily Thorne', email: 'e.thorne@logiledger.internal', status: 'Synced', role: 'Fulfillment Coordinator', provider: 'Okta SSO' }
   ]);
 
   const handleSyncDirectory = () => {
@@ -36,7 +36,7 @@ export default function DirectorySSOHub({
       updated.push({
         id: `usr-${Math.random().toString(36).substr(2, 5)}`,
         name: 'Alex Vance',
-        email: 'a.vance@omnishelf.internal',
+        email: 'a.vance@logiledger.internal',
         status: 'Synced',
         role: 'Warehouse Manager',
         provider: 'Okta Directory Sync'
