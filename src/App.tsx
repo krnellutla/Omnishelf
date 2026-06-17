@@ -31,7 +31,8 @@ import {
   ClipboardCheck,
   Truck,
   BarChart3,
-  Sparkles
+  Sparkles,
+  Cpu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -65,6 +66,7 @@ import ProcurementHub from './components/ProcurementHub';
 import CycleCountHub from './components/CycleCountHub';
 import FulfillmentHub from './components/FulfillmentHub';
 import AnalyticsHub from './components/AnalyticsHub';
+import CopilotHub from './components/CopilotHub';
 import ProductLandingSite from './components/ProductLandingSite';
 
 interface Tenant {
@@ -264,7 +266,7 @@ export default function App() {
 
   // --- Layout Preferences ---
   const [deviceLayout, setDeviceLayout] = useState<'responsive' | 'mobile-sim' | 'desktop-sim'>('responsive');
-  const [activeTab, setActiveTab] = useState<'all' | 'planner' | 'logs' | 'labels'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'planner' | 'logs' | 'labels' | 'copilot' | 'procurement' | 'count' | 'fulfillment' | 'analytics' | 'directory-sso'>('all');
   const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
 
   // --- Filtering & Selection ---
@@ -272,10 +274,18 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [stockLevelFilter, setStockLevelFilter] = useState<'ALL' | 'LOW' | 'IN_STOCK' | 'OUT'>('ALL');
   
+  // --- Batch Adjustment Inputs ---
+  const [batchCategory, setBatchCategory] = useState<string>('');
+  const [batchLocation, setBatchLocation] = useState<string>('');
+  const [batchSupplier, setBatchSupplier] = useState<string>('');
+  const [batchQtyAction, setBatchQtyAction] = useState<'NONE' | 'SET' | 'ADD' | 'SUBTRACT'>('NONE');
+  const [batchQtyValue, setBatchQtyValue] = useState<number>(0);
+  
   // --- Modal Controllers ---
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   
   // --- Notification Banner ---
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
@@ -701,6 +711,150 @@ export default function App() {
     }
   };
 
+  const handleBatchUpdate = async (updates: {
+    category?: string;
+    location?: string;
+    supplier?: string;
+    quantityAdjustment?: { type: 'SET' | 'ADD' | 'SUBTRACT'; value: number };
+  }) => {
+    if (selectedProductIds.length === 0) return;
+
+    let successCount = 0;
+    const promises: Promise<any>[] = [];
+    const reason = `Bulk update characteristics of ${selectedProductIds.length} select items.`;
+
+    for (const pId of selectedProductIds) {
+      const product = products.find(p => p.id === pId);
+      if (!product) continue;
+
+      const prevQty = product.quantity;
+      let newQty = prevQty;
+
+      if (updates.quantityAdjustment) {
+        const { type, value } = updates.quantityAdjustment;
+        if (type === 'SET') {
+          newQty = Math.max(0, value);
+        } else if (type === 'ADD') {
+          newQty = prevQty + value;
+        } else if (type === 'SUBTRACT') {
+          newQty = Math.max(0, prevQty - value);
+        }
+      }
+
+      const finalProduct: Product = {
+        ...product,
+        category: updates.category !== undefined && updates.category !== "" ? updates.category : product.category,
+        location: updates.location !== undefined ? updates.location : product.location,
+        supplier: updates.supplier !== undefined ? updates.supplier : product.supplier,
+        quantity: newQty,
+        updatedAt: new Date().toISOString()
+      };
+
+      saveLocalProduct(finalProduct, reason);
+      
+      const isSystem = product.createdBy === 'system';
+      if (isOnline && user && !isSystem) {
+        const promise = (async () => {
+          try {
+            await setDoc(doc(db, 'products', finalProduct.id), finalProduct);
+            const qtyDiff = newQty - prevQty;
+            if (qtyDiff !== 0) {
+              const freshTx: Transaction = {
+                id: `tx-${Math.random().toString(36).substr(2, 9)}`,
+                productId: finalProduct.id,
+                productName: finalProduct.name,
+                type: qtyDiff > 0 ? 'IN' : 'OUT',
+                quantityChanged: Math.abs(qtyDiff),
+                previousQuantity: prevQty,
+                newQuantity: newQty,
+                reason,
+                timestamp: new Date().toISOString(),
+                userId: user.uid,
+                tenantId: currentTenantId
+              };
+              await setDoc(doc(db, 'transactions', freshTx.id), freshTx);
+            }
+          } catch (e) {
+            console.error("Cloud sync of batch update failed for ID:", finalProduct.id, e);
+          }
+        })();
+        promises.push(promise);
+      }
+      successCount++;
+    }
+
+    if (promises.length > 0) {
+      try {
+        await Promise.all(promises);
+      } catch (e) {
+        console.error("Some properties failed syncing:", e);
+      }
+    }
+
+    loadDatabase();
+    updateSyncMetrics();
+    setSelectedProductIds([]);
+    showNotification(`Successfully applied bulk configurations to ${successCount} products.`, 'success');
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedProductIds.length === 0) return;
+    if (confirm(`Are you sure you want to permanently delete these ${selectedProductIds.length} designated products from your index listings?`)) {
+      let count = 0;
+      const promises: Promise<any>[] = [];
+
+      for (const pId of selectedProductIds) {
+        const prod = products.find(p => p.id === pId);
+        if (!prod) continue;
+        const isSystem = prod.createdBy === 'system';
+
+        const qty = prod.quantity;
+        const freshTx: Transaction = {
+          id: `tx-${Math.random().toString(36).substr(2, 9)}`,
+          productId: pId,
+          productName: prod.name,
+          type: 'OUT',
+          quantityChanged: qty,
+          previousQuantity: qty,
+          newQuantity: 0,
+          reason: `Bulk items indices deletion.`,
+          timestamp: new Date().toISOString(),
+          userId: user ? user.uid : 'offline-user',
+          tenantId: currentTenantId
+        };
+        
+        createLocalTransaction(freshTx);
+        deleteLocalProduct(pId);
+
+        if (isOnline && user && !isSystem) {
+          const promise = (async () => {
+            try {
+              await setDoc(doc(db, 'transactions', freshTx.id), freshTx);
+              await deleteDoc(doc(db, 'products', pId));
+            } catch (e) {
+              console.error("Cloud failure inside batch destruction loop:", pId, e);
+            }
+          })();
+          promises.push(promise);
+        }
+        count++;
+      }
+
+      if (promises.length > 0) {
+        try {
+          await Promise.all(promises);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      loadDatabase();
+      updateSyncMetrics();
+      setSelectedProductIds([]);
+      showNotification(`Bulk purge complete, deleted ${count} selected records successfully!`, 'info');
+    }
+  };
+
   const handleCreateCategory = async (newCat: Category) => {
     const finalCat = {
       ...newCat,
@@ -876,6 +1030,16 @@ export default function App() {
   const renderTabContent = () => {
     const forceMobile = deviceLayout === 'mobile-sim';
     switch (activeTab) {
+      case 'copilot':
+        return (
+          <CopilotHub
+            products={tenantProducts}
+            transactions={tenantTransactions}
+            currentRole={currentRole}
+            currentTenantId={currentTenantId}
+            showNotification={showNotification}
+          />
+        );
       case 'planner':
         return <InventoryStats products={tenantProducts} onRestockClick={handleRestockOrder} forceMobile={forceMobile} />;
       case 'procurement':
@@ -1107,6 +1271,161 @@ export default function App() {
           </button>
         </div>
 
+        {/* Batch Operations Console */}
+        <AnimatePresence>
+          {selectedProductIds.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3 shadow-xs"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-mono font-bold text-xs shrink-0 shadow-sm shadow-indigo-600/10">
+                    {selectedProductIds.length}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-indigo-950 text-xs">Bulk Item Actions Active</h4>
+                    <p className="text-[10px] text-indigo-600">Select bulk updates below and apply them to all {selectedProductIds.length} checked logs.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end lg:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedProductIds([]);
+                      setBatchCategory('');
+                      setBatchLocation('');
+                      setBatchSupplier('');
+                      setBatchQtyAction('NONE');
+                      setBatchQtyValue(0);
+                    }}
+                    className="px-3 py-1.5 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-[10px] uppercase tracking-wider transition bg-transparent"
+                  >
+                    Clear Selections
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBatchDelete}
+                    className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-lg text-[10px] uppercase tracking-wider flex items-center gap-1 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete selection ({selectedProductIds.length})</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-indigo-150 my-2 pt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+                {/* Category dropdown */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-indigo-800">Set Category</label>
+                  <select
+                    value={batchCategory}
+                    onChange={(e) => setBatchCategory(e.target.value)}
+                    className="w-full bg-white border border-indigo-200 hover:border-indigo-300 focus:border-indigo-600 rounded-lg px-2.5 py-1.5 outline-none font-semibold text-xs text-gray-800 cursor-pointer"
+                  >
+                    <option value="">(No Change)</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Location Input */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-indigo-800">Set Shelf Location</label>
+                  <input
+                    type="text"
+                    value={batchLocation}
+                    onChange={(e) => setBatchLocation(e.target.value)}
+                    placeholder="(No Change)"
+                    className="w-full bg-white border border-indigo-200 hover:border-indigo-300 focus:border-indigo-600 rounded-lg px-2.5 py-1.5 outline-none text-xs text-gray-800"
+                  />
+                </div>
+
+                {/* Supplier input */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-indigo-800">Set Vendor Supplier</label>
+                  <input
+                    type="text"
+                    value={batchSupplier}
+                    onChange={(e) => setBatchSupplier(e.target.value)}
+                    placeholder="(No Change)"
+                    className="w-full bg-white border border-indigo-200 hover:border-indigo-300 focus:border-indigo-600 rounded-lg px-2.5 py-1.5 outline-none text-xs text-gray-800"
+                  />
+                </div>
+
+                {/* Quantity adjustment logic */}
+                <div className="space-y-1 sm:col-span-2 lg:col-span-2 grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-indigo-800">Qty Adjustment</label>
+                    <select
+                      value={batchQtyAction}
+                      onChange={(e) => setBatchQtyAction(e.target.value as any)}
+                      className="w-full bg-white border border-indigo-200 hover:border-indigo-300 focus:border-indigo-600 rounded-lg px-2.5 py-1.5 outline-none font-semibold text-xs text-gray-800 cursor-pointer"
+                    >
+                      <option value="NONE">No Change</option>
+                      <option value="SET">Set To Exact</option>
+                      <option value="ADD">Increment (+)</option>
+                      <option value="SUBTRACT">Decrement (-)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-indigo-800">Qty Amount</label>
+                    <input
+                      type="number"
+                      value={batchQtyValue}
+                      disabled={batchQtyAction === 'NONE'}
+                      onChange={(e) => setBatchQtyValue(Math.max(0, parseInt(e.target.value) || 0))}
+                      placeholder="0"
+                      className="w-full bg-white border border-indigo-200 hover:border-indigo-300 focus:border-indigo-600 rounded-lg px-2.5 py-1.5 outline-none text-xs text-gray-800 disabled:bg-indigo-50/55 disabled:text-indigo-400 disabled:border-indigo-150"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Apply trigger button */}
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const updates: Parameters<typeof handleBatchUpdate>[0] = {};
+                    if (batchCategory) updates.category = batchCategory;
+                    if (batchLocation !== "") updates.location = batchLocation;
+                    if (batchSupplier !== "") updates.supplier = batchSupplier;
+                    if (batchQtyAction !== 'NONE') {
+                      updates.quantityAdjustment = {
+                        type: batchQtyAction,
+                        value: batchQtyValue
+                      };
+                    }
+
+                    if (Object.keys(updates).length === 0) {
+                      showNotification("Please select or enter at least one value to batch update.", "warning");
+                      return;
+                    }
+
+                    await handleBatchUpdate(updates);
+                    // Reset batch selection UI controls
+                    setBatchCategory('');
+                    setBatchLocation('');
+                    setBatchSupplier('');
+                    setBatchQtyAction('NONE');
+                    setBatchQtyValue(0);
+                  }}
+                  className="flex items-center justify-center gap-1.5 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-md transition cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Apply Bulk Adjustments to {selectedProductIds.length} Items</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Database Grid Container */}
         <div className="border border-gray-200 rounded-xl bg-white overflow-hidden shadow-xs">
           
@@ -1115,6 +1434,27 @@ export default function App() {
             <table className="w-full text-left border-collapse font-sans">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 text-[10px] uppercase tracking-wider font-extrabold text-gray-500 text-center">
+                  <th className="py-3 px-3 text-center w-10">
+                    <input
+                      type="checkbox"
+                      checked={filteredProducts.length > 0 && filteredProducts.every(p => selectedProductIds.includes(p.id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          // Merge all filtered products to selections
+                          const allFilteredIds = filteredProducts.map(p => p.id);
+                          setSelectedProductIds(prev => {
+                            const newSelectionSet = new Set([...prev, ...allFilteredIds]);
+                            return Array.from(newSelectionSet);
+                          });
+                        } else {
+                          // Remove all filtered products from selections
+                          const filteredIdsSet = new Set(filteredProducts.map(p => p.id));
+                          setSelectedProductIds(prev => prev.filter(id => !filteredIdsSet.has(id)));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-3.5 h-3.5"
+                    />
+                  </th>
                   <th className="py-3 px-4 text-left">Product / SKU</th>
                   <th className="py-3 px-2">Category</th>
                   <th className="py-3 px-2">Location</th>
@@ -1132,7 +1472,23 @@ export default function App() {
                     const isOut = p.quantity === 0;
 
                     return (
-                      <tr key={p.id} className="hover:bg-gray-50/50 transition border-b border-gray-105 border-gray-105/40 text-gray-900">
+                      <tr key={p.id} className={`hover:bg-gray-50/50 transition border-b border-gray-105 border-gray-105/40 text-gray-900 ${selectedProductIds.includes(p.id) ? 'bg-indigo-50/30' : ''}`}>
+                        {/* Selector Checkbox */}
+                        <td className="py-3.5 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedProductIds.includes(p.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedProductIds(prev => [...prev, p.id]);
+                              } else {
+                                setSelectedProductIds(prev => prev.filter(id => id !== p.id));
+                              }
+                            }}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-3.5 h-3.5"
+                          />
+                        </td>
+
                         {/* Name & Barcode */}
                         <td className="py-3.5 px-4 font-sans">
                           <div className="flex flex-col">
@@ -1229,7 +1585,7 @@ export default function App() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center space-y-2">
+                    <td colSpan={9} className="py-12 text-center space-y-2">
                       <Package className="w-8 h-8 text-gray-300 mx-auto" strokeWidth={1} />
                       <h4 className="text-gray-500 font-semibold">No records found</h4>
                       <p className="text-xs text-gray-400 max-w-sm mx-auto">None of your registered product listings matched your selected search criteria or filters.</p>
@@ -1248,26 +1604,44 @@ export default function App() {
                 const isOut = p.quantity === 0;
 
                 return (
-                  <div key={p.id} className="p-4 space-y-3 hover:bg-gray-50/50 transition bg-white text-gray-900">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="font-bold text-gray-900 text-sm leading-snug">{p.name}</h4>
-                          <span className="text-[8px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-bold uppercase tracking-wider shrink-0">
-                            {p.category}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 py-0.5 font-mono text-[9px] text-gray-400">
-                          <span>SKU: {p.sku}</span>
-                          <span>•</span>
-                          <span>Bar: {p.barcode}</span>
-                        </div>
+                  <div key={p.id} className={`p-4 space-y-3 hover:bg-gray-50/50 transition bg-white text-gray-900 border-l-4 ${selectedProductIds.includes(p.id) ? 'border-l-indigo-600 bg-indigo-50/15' : 'border-l-transparent'}`}>
+                    <div className="flex items-start gap-3">
+                      {/* Selection Checkbox for Touchscreens */}
+                      <div className="pt-0.5 shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedProductIds.includes(p.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedProductIds(prev => [...prev, p.id]);
+                            } else {
+                              setSelectedProductIds(prev => prev.filter(id => id !== p.id));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4 text-xs font-semibold"
+                        />
                       </div>
-                      
-                      {/* Price tag */}
-                      <div className="text-right shrink-0">
-                        <span className="text-sm font-extrabold text-blue-600 font-mono">${p.price.toFixed(2)}</span>
-                        <div className="text-[9px] text-gray-400 font-mono text-xs">Cost: ${p.cost.toFixed(2)}</div>
+
+                      <div className="flex-1 flex items-start justify-between gap-3 min-w-0">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="font-bold text-gray-900 text-sm leading-snug">{p.name}</h4>
+                            <span className="text-[8px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-bold uppercase tracking-wider shrink-0">
+                              {p.category}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 py-0.5 font-mono text-[9px] text-gray-400">
+                            <span>SKU: {p.sku}</span>
+                            <span>•</span>
+                            <span>Bar: {p.barcode}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Price tag */}
+                        <div className="text-right shrink-0">
+                          <span className="text-sm font-extrabold text-blue-600 font-mono">${p.price.toFixed(2)}</span>
+                          <div className="text-[9px] text-gray-400 font-mono text-xs">Cost: ${p.cost.toFixed(2)}</div>
+                        </div>
                       </div>
                     </div>
 
@@ -1360,11 +1734,28 @@ export default function App() {
 
             {/* Sidebar Navigation */}
             <div className="space-y-1 overflow-y-auto max-h-[50vh] pr-1 scrollbar-thin scrollbar-thumb-slate-700">
+              <span className="text-[9px] font-black tracking-widest text-indigo-400 uppercase block pl-3 pb-1 pt-2">AI ADVANCED</span>
+
+              <button
+                onClick={() => setActiveTab('copilot')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'copilot' ? 'bg-indigo-600 text-white font-bold shadow-md' : 'text-indigo-300 hover:text-indigo-200 hover:bg-slate-800/80 border border-indigo-500/15'}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Cpu className="w-4 h-4 text-pink-400 animate-pulse" />
+                  <span>AI Stock Copilot</span>
+                </div>
+                <div className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 font-bold font-mono text-[8.5px] rounded border border-indigo-500/35">
+                  LIVE
+                </div>
+              </button>
+
+              <div className="my-2 border-b border-slate-800/50" />
+
               <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase block pl-3 pb-1 pt-2">Core Inventory</span>
 
               <button
                 onClick={() => setActiveTab('all')}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'all' ? 'bg-blue-600 text-white font-bold' : 'text-slate-450 text-slate-450 hover:text-slate-200 text-slate-400 hover:bg-slate-800'}`}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'all' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
               >
                 <div className="flex items-center gap-2.5">
                   <Package className="w-4 h-4" />
@@ -1518,6 +1909,14 @@ export default function App() {
         <nav className="block md:hidden fixed bottom-0 left-0 right-0 border-t border-slate-800 bg-slate-905 bg-slate-900/95 backdrop-blur-md z-30 overflow-x-auto font-sans scrollbar-none">
           <div className="flex items-center gap-6 px-4 py-2.5 min-w-max">
             
+            <button
+              onClick={() => setActiveTab('copilot')}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 ${activeTab === 'copilot' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}
+            >
+              <Cpu className="w-4 h-4 text-pink-400 animate-pulse" />
+              <span className="text-[9px]">Copilot AI</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('all')}
               className={`flex flex-col items-center justify-center gap-1 py-0.5 ${activeTab === 'all' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
@@ -1849,11 +2248,11 @@ export default function App() {
                     </button>
 
                     <button
-                      onClick={() => setActiveTab('labels')}
-                      className={`text-[9px] font-bold flex flex-col items-center justify-center gap-1 ${activeTab === 'labels' ? 'text-indigo-400' : 'text-slate-500'}`}
+                      onClick={() => setActiveTab('copilot')}
+                      className={`text-[9px] font-bold flex flex-col items-center justify-center gap-1 ${activeTab === 'copilot' ? 'text-indigo-400 font-bold' : 'text-slate-500'}`}
                     >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>Labels</span>
+                      <Cpu className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
+                      <span>Copilot AI</span>
                     </button>
                   </div>
                 </nav>
