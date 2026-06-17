@@ -18,15 +18,21 @@ Built with **React**, **Vite**, **Tailwind CSS**, and powered by **Firebase Fire
 * **Auto-Sync Queueing**: Maintains a synchronization queue that automatically uploads offline transactions and product ledger edits to Firebase Firestore the moment a network connection is re-established.
 * **Visual Mode Toggle**: Includes a manual simulated network connection switcher to preview, test, and witness robust offline sync behaviors in real-time.
 
-### 🔍 Integrated Barcode Scan Simulation
-* **Camera Scanning**: Utilizes the user's camera (with standard browser permissions) to scan physical UPC, EAN, or SKU labels.
-* **High-Density Scanner Panel**: A custom simulation board featuring popular products' preloaded barcodes for rapid, instant click-to-scan development testing.
-* **Seamless Dispatching**: Instantly displays restock suggestions, updates existing SKU levels, or initializes a new product registration upon scan.
+### 🔍 Omni Scanner Terminal (1D Barcodes & 2D QR Codes)
+* **Dual-Format Support**: Upgraded camera-based scanner to recognize both standard 1D linear barcodes (EAN, UPC, Code 128) and newer 2D high-density QR Code labels.
+* **Flexible Scanning Presets**: Toggleable scan mode selectors (Auto Scan, 1D Barcode, 2D QR) matching designated responsive reticle dimensions and glowing laser sights.
+* **Omni Simulator Deck**: Built-in test sandbox containing mock product standard barcodes (1D) and logistics bin/batch allocation codes (2D) for rapid software testing inside sandboxed web environments.
+* **Manual Override field**: Allows rapid keyin or mock barcode emulation directly into the processing routine with a built-in beep sound simulator.
 
-### 📊 Intelligent Replenish Planner
-* **Critical Stock Indicators**: Live warning badges and pulsing indicators that alert operators about low inventory (below the custom threshold) or stockout items.
-* **Smart Order Forms**: Interactive restock planners to generate material requests with active suppliers instantly.
-* **Dynamic Audits**: Rich categorization filters, price/cost ledger displays, and automated total value tracking.
+### 🎨 Universal Theme Switcher & Dark Mode
+* **Instant Toggle**: Single-click dark/light mode toggle in the universal header bar that persists selections automatically inside `localStorage`.
+* **Tailored Color Hierarchies**: Beautifully customized deep space slate palettes and high-contrast card structures across all dashboards, filters, text nodes, modal popups, and Recharts graph panels.
+* **Zero Flash Glare**: Configured custom root CSS overrides to ensure smooth transitions without layout fuming or rendering lag.
+
+### 📈 Intelligent Replenish Planner & 7-Day Burn Analytics
+* **Predictive Stockouts**: Automatically runs a dynamic analytics suite calculating individual SKU daily/weekly burn rates by isolating past `OUT` transaction counts and dates.
+* **Days-to-Cover Dashboard**: A prominent live risk board displaying time remaining before breaching custom minimum safe stock (e.g., "X days", "Already Depleted").
+* **Click-to-Replenish dispatch**: Fast action button that instantly preloads Copilot with pre-computed logistics metrics (current inventory, safety bounds, weekly burn rate, projected buffer days) to write supplier replenishment orders.
 
 ---
 

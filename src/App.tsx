@@ -32,7 +32,9 @@ import {
   Truck,
   BarChart3,
   Sparkles,
-  Cpu
+  Cpu,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -268,6 +270,19 @@ export default function App() {
   const [deviceLayout, setDeviceLayout] = useState<'responsive' | 'mobile-sim' | 'desktop-sim'>('responsive');
   const [activeTab, setActiveTab] = useState<'all' | 'planner' | 'logs' | 'labels' | 'copilot' | 'procurement' | 'count' | 'fulfillment' | 'analytics' | 'directory-sso'>('all');
   const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('logiledger_theme') as 'light' | 'dark') || 'light';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('logiledger_theme', theme);
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
 
   // --- Filtering & Selection ---
   const [search, setSearch] = useState<string>('');
@@ -2026,7 +2041,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/80 text-slate-900 flex flex-col font-sans select-none antialiased selection:bg-indigo-600 selection:text-white">
+    <div className={`min-h-screen ${theme === 'dark' ? 'dark text-slate-100' : 'text-slate-900'} bg-slate-50/80 flex flex-col font-sans select-none antialiased selection:bg-indigo-600 selection:text-white`}>
       
       {/* Universal Top Header Bar (Status & Device Simulator Control) */}
       <header className="px-4 sm:px-6 py-3 border-b border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-xs">
@@ -2115,6 +2130,30 @@ export default function App() {
               <span>Simulate Desktop App</span>
             </button>
           </div>
+
+          {/* Theme switcher toggle */}
+          <button
+            onClick={() => {
+              const newTheme = theme === 'light' ? 'dark' : 'light';
+              setTheme(newTheme);
+              showNotification(`Switched interface theme preference to standard ${newTheme.toUpperCase()} mode.`, 'info');
+            }}
+            id="theme-switcher-toggle"
+            className="px-3 py-1.5 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
+            title={`Toggle ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+          >
+            {theme === 'light' ? (
+              <>
+                <Moon className="w-3.5 h-3.5 text-indigo-500 animate-[pulse_3s_infinite]" />
+                <span className="text-[10px] font-bold">Dark Mode</span>
+              </>
+            ) : (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-500 animate-[spin_12s_linear_infinite]" />
+                <span className="text-[10px] font-bold">Light Mode</span>
+              </>
+            )}
+          </button>
 
           {/* Google Auth Status / Actions Panel */}
           {user ? (

@@ -5,3 +5,157 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
+
+/* ==========================================
+   Sophisticated Dark Mode Override Cascades
+   ========================================== */
+
+/* Set a dark color scheme for browser elements in dark mode */
+html.dark {
+  color-scheme: dark;
+}
+
+/* Root level rules applied exclusively when .dark is present */
+html.dark,
+html.dark body,
+html.dark #root,
+html.dark .min-h-screen {
+  background-color: #0b0f19 !important; /* Deep space slate background */
+  color: #f1f5f9 !important;
+}
+
+/* Primary surface layouts (Card structures, Header, Footer) */
+html.dark header,
+html.dark footer,
+html.dark .bg-white,
+html.dark .bg-white\/90 {
+  background-color: #111827 !important; /* Premium Slate-900 */
+  border-color: #1f2937 !important; /* Slate-800 */
+  color: #f9fafb !important;
+}
+
+/* Soft background variations (Layout page canvas) */
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-100\/50,
+html.dark .bg-gray-50\/50 {
+  background-color: #0b0f19 !important;
+}
+
+/* Inputs, Select dropdowns, interactive form fields */
+html.dark input[type="text"],
+html.dark input[type="number"],
+html.dark input[type="password"],
+html.dark input[type="email"],
+html.dark select,
+html.dark textarea {
+  background-color: #1f2937 !important; /* Slate-800 */
+  border-color: #374151 !important; /* Slate-700 */
+  color: #f9fafb !important;
+}
+
+html.dark select option {
+  background-color: #111827 !important;
+  color: #f9fafb !important;
+}
+
+/* Secondary surface elements (Interactive pill selectors, simulator sliders, details lists) */
+html.dark .bg-gray-50,
+html.dark .bg-slate-50,
+html.dark .bg-gray-100 {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+/* Outer/Inner border definitions */
+html.dark .border-gray-200,
+html.dark .border-gray-250,
+html.dark .border-gray-150,
+html.dark .border-slate-200 {
+  border-color: #1f2937 !important;
+}
+
+/* Subdivide items blocks (Tables, Transaction Log line rows, listings lists) */
+html.dark .divide-gray-150 > * + *,
+html.dark .divide-gray-200 > * + * {
+  border-color: #1f2937 !important;
+}
+
+/* Active buttons that were background-white to prevent flashlight glare */
+html.dark .bg-white.text-gray-700,
+html.dark .bg-white.text-gray-900,
+html.dark .border-gray-250\/80 {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+  border-color: #374151 !important;
+}
+
+/* Button & interactive hover background variations */
+html.dark .bg-white.text-gray-700:hover,
+html.dark .bg-white.text-gray-900:hover,
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-50\/50:hover,
+html.dark .hover\:bg-slate-100:hover {
+  background-color: #374151 !important;
+}
+
+/* Typography map corrections designed strictly for visual clarity in dark */
+html.dark .text-slate-900,
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-slate-805,
+html.dark .text-indigo-950 {
+  color: #f9fafb !important; /* Slate-50 */
+}
+
+html.dark .text-slate-700,
+html.dark .text-gray-700,
+html.dark .text-slate-800,
+html.dark .text-gray-600 {
+  color: #d1d5db !important; /* Slate-300 */
+}
+
+html.dark .text-slate-500,
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: #9ca3af !important; /* Slate-400 */
+}
+
+/* Fine-tune specific indigo background sheets to stand-out nicely */
+html.dark .border-indigo-200,
+html.dark .border-indigo-150,
+html.dark .border-indigo-100 {
+  border-color: #312e81 !important; /* Deep Indigo 950 */
+}
+
+html.dark .bg-indigo-50\/15 {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+}
+
+html.dark .bg-indigo-50 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #a5b4fc !important;
+}
+
+/* Charts grid lines adjustments to maintain legibility in dark mode */
+html.dark .recharts-cartesian-grid-horizontal line,
+html.dark .recharts-cartesian-grid-vertical line {
+  stroke: #1f2937 !important;
+}
+
+html.dark .recharts-default-tooltip {
+  background-color: #111827 !important;
+  border-color: #374151 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .recharts-tooltip-label {
+  color: #f9fafb !important;
+}
+
+/* Perfecting Landing site background overlays so theme toggle is consistent */
+html.dark .from-slate-50 {
+  --tw-gradient-from: #0b0f19 !important;
+}
+html.dark .to-indigo-50\/60 {
+  --tw-gradient-to: rgba(99, 102, 241, 0.05) !important;
+}
