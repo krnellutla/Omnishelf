@@ -34,6 +34,24 @@ Built with **React**, **Vite**, **Tailwind CSS**, and powered by **Firebase Fire
 * **Days-to-Cover Dashboard**: A prominent live risk board displaying time remaining before breaching custom minimum safe stock (e.g., "X days", "Already Depleted").
 * **Click-to-Replenish dispatch**: Fast action button that instantly preloads Copilot with pre-computed logistics metrics (current inventory, safety bounds, weekly burn rate, projected buffer days) to write supplier replenishment orders.
 
+### 🖼️ Product Media & Thumbnail URL Integration
+* **Placeholder Image URL**: Custom defined optional thumbnail URLs customizable per product directly within the registration & modification panels.
+* **Inline Data Grid Visuals**: Elegant image thumbnails embedded into inventory lists on desktop grids and interactive mobile listings with automatic image fallback handlers.
+
+### 🔔 Visual Threshold Alert Center & Immediate Toasts
+* **Safety Stock Center**: Built-in warning dropdown drawer toggled via the main header's bell notification icon exhibiting low-stock status indicators and active SKU targets.
+* **Immediate Popups Portal**: Bottom right floating action panel immediately triggering highly visible real-time warning toasts if manual edit or transaction checkout decreases quantity below safety minimum stock.
+* **Instant Restock Shortcut**: Full system integration allowing rapid one-click automated supplier replenishment order dispatch directly from the warning drawers and notification cards.
+
+### 🎓 Zero-Knowledge Onboarding & Interactive Setup Wizard (The Perfect Consumer Hook)
+* **Guided Setup Tour**: A gorgeous five-step visual configuration wizard designed specifically for non-technical operators. It acts as an engaging consumer hook on the very first visit, helping them configure identity, custom categories, and safety stock points without any tech friction.
+* **Automated Data Seed Catalyst**: Lets clients initialize their catalog either as a clean-sweep fresh slate or pre-fill it with simulated low-stock trial items to see visual alert centers work in real-time.
+* **Persistent Launchpad**: Mounted in the header as a dedicated "Setup & Test Wizard" button allowing clients to reset or recheck configuration states on-demand.
+
+### 🧪 Automated Live Diagnostics & Unit Testing (UX + API Integrity Checkers)
+* **Live In-App Diagnostic Runner**: Runs automated UX and API compliance checks inside the Setup Wizard. Newly onboarded clients click a button to execute a live system check (localStorage write speeds, cloud sync triggers, notification rule paths, and viewport layouts) and view real-time log outputs.
+* **Command-Line Vitest Framework**: Complete end-to-end automated unit test scripts (`/src/utils/localDB.test.ts`) integrated with Vitest. Run `npm run test` or `npx vitest run` to verify data consistency and transactional inventory ledger checks.
+
 ---
 
 ## 🛠️ Technology Stack

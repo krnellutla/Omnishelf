@@ -151,3 +151,17 @@ export interface WebhookLog {
   tenantId: string;
 }
 
+export interface StockAlert {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  currentQty: number;
+  minStock: number;
+  timestamp: string;
+  type: 'threshold_reached' | 'out_of_stock';
+  isRead: boolean;
+  tenantId?: string;
+}
+
+

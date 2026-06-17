@@ -34,7 +34,12 @@ import {
   Sparkles,
   Cpu,
   Sun,
-  Moon
+  Moon,
+  Bell,
+  AlertTriangle,
+  X,
+  BellRing,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -44,7 +49,7 @@ import { collection, doc, query, where, onSnapshot, setDoc, deleteDoc } from 'fi
 import { db, auth, googleProvider, signInWithPopup, signOut, OperationType, handleFirestoreError } from './utils/firebase';
 
 // Models & API Types
-import { Product, Category, Transaction, SyncState, UserRole, PurchaseOrder, CycleCountSession, SalesOrder, WebhookLog } from './types';
+import { Product, Category, Transaction, SyncState, UserRole, PurchaseOrder, CycleCountSession, SalesOrder, WebhookLog, StockAlert } from './types';
 import {
   getLocalProducts,
   saveLocalProduct,
@@ -70,6 +75,7 @@ import FulfillmentHub from './components/FulfillmentHub';
 import AnalyticsHub from './components/AnalyticsHub';
 import CopilotHub from './components/CopilotHub';
 import ProductLandingSite from './components/ProductLandingSite';
+import OnboardingWizard from './components/OnboardingWizard';
 
 interface Tenant {
   id: string;
@@ -299,11 +305,26 @@ export default function App() {
   // --- Modal Controllers ---
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    return !localStorage.getItem('logiledger_onboarding_completed_v1');
+  });
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   
   // --- Notification Banner ---
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
+
+  // --- Low Stock / Threshold Alerts ---
+  const [stockAlerts, setStockAlerts] = useState<StockAlert[]>(() => {
+    const saved = localStorage.getItem('logiledger_stock_alerts_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [activeToastAlerts, setActiveToastAlerts] = useState<StockAlert[]>([]);
+  const [isAlertDropdownOpen, setIsAlertDropdownOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    localStorage.setItem('logiledger_stock_alerts_v1', JSON.stringify(stockAlerts));
+  }, [stockAlerts]);
 
   // --- Auth state change listener ---
   useEffect(() => {
@@ -617,6 +638,39 @@ export default function App() {
     }, 4500);
   };
 
+  const checkThresholdAlert = (product: Product, prevQty: number) => {
+    // Triggers when quantity falls of threshold and has actually changed or the product is newly registered under threshold
+    if (product.quantity <= product.minStock && product.quantity !== prevQty) {
+      const isOutOfStock = product.quantity === 0;
+      const newAlert: StockAlert = {
+        id: `alert-${Math.random().toString(36).substr(2, 9)}`,
+        productId: product.id,
+        productName: product.name,
+        sku: product.sku,
+        currentQty: product.quantity,
+        minStock: product.minStock,
+        timestamp: new Date().toISOString(),
+        type: isOutOfStock ? 'out_of_stock' : 'threshold_reached',
+        isRead: false,
+        tenantId: currentTenantId
+      };
+
+      setStockAlerts(prev => {
+        const filtered = prev.filter(item => item.productId !== product.id);
+        return [newAlert, ...filtered].slice(0, 50);
+      });
+      setActiveToastAlerts(prev => {
+        const filtered = prev.filter(item => item.productId !== product.id);
+        return [newAlert, ...filtered];
+      });
+
+      // Automatically clear toast alert from view list after 7 seconds
+      setTimeout(() => {
+        setActiveToastAlerts(prev => prev.filter(t => t.id !== newAlert.id));
+      }, 7000);
+    }
+  };
+
   // --- Actions ---
   const handleSaveProduct = async (updatedProduct: Product, reason?: string) => {
     const isNew = !products.some(p => p.id === updatedProduct.id);
@@ -630,6 +684,7 @@ export default function App() {
     };
 
     saveLocalProduct(finalProduct, reason);
+    checkThresholdAlert(finalProduct, prevQty);
     loadDatabase();
     updateSyncMetrics();
 
@@ -766,6 +821,7 @@ export default function App() {
       };
 
       saveLocalProduct(finalProduct, reason);
+      checkThresholdAlert(finalProduct, prevQty);
       
       const isSystem = product.createdBy === 'system';
       if (isOnline && user && !isSystem) {
@@ -2102,6 +2158,15 @@ export default function App() {
             <span>Product Tour Site</span>
           </button>
 
+          <button
+            onClick={() => setIsOnboardingOpen(true)}
+            className="px-2.5 py-1 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-emerald-250 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg text-[10px] flex items-center gap-1 bg-emerald-50/30 transition cursor-pointer font-sans"
+            title="Wizard configuration guide and automated unit test suite"
+          >
+            <HelpCircle className="w-3 h-3 text-emerald-500 animate-pulse" />
+            <span>Setup & Test Wizard</span>
+          </button>
+
           <div className="h-5 w-px bg-gray-200 hidden sm:block" />
 
           {/* Tenant Dropdown */}
@@ -2165,6 +2230,150 @@ export default function App() {
               <Monitor className="w-3.5 h-3.5" />
               <span>Simulate Desktop App</span>
             </button>
+          </div>
+
+          {/* Visual Notification Bell Icon & Dropdown Alert System */}
+          <div className="relative">
+            <button
+              onClick={() => setIsAlertDropdownOpen(!isAlertDropdownOpen)}
+              id="alert-center-toggle"
+              className="p-2 relative border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition cursor-pointer flex items-center justify-center shadow-xs shrink-0"
+              title="Stock Alert & Threshold Warning Center"
+            >
+              {stockAlerts.filter(a => !a.isRead && (!a.tenantId || a.tenantId === currentTenantId)).length > 0 ? (
+                <>
+                  <BellRing className="w-4 h-4 text-red-500 animate-[bounce_1.5s_infinite]" />
+                  <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-1 flex items-center justify-center bg-red-500 text-white text-[8px] font-black rounded-full shadow-xs border border-white dark:border-slate-800">
+                    {stockAlerts.filter(a => !a.isRead && (!a.tenantId || a.tenantId === currentTenantId)).length}
+                  </span>
+                </>
+              ) : (
+                <Bell className="w-4 h-4" />
+              )}
+            </button>
+
+            {isAlertDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-45 bg-transparent" 
+                  onClick={() => setIsAlertDropdownOpen(false)} 
+                />
+                <div className="absolute right-0 mt-2.5 w-80 md:w-96 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="p-3 border-b border-gray-150 dark:border-slate-850 bg-slate-50 dark:bg-slate-950/40 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        Logistics Threshold Alerts
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      {stockAlerts.filter(a => !a.tenantId || a.tenantId === currentTenantId).length > 0 && (
+                        <button
+                          onClick={() => {
+                            setStockAlerts(prev => prev.map(a => (!a.tenantId || a.tenantId === currentTenantId) ? { ...a, isRead: true } : a));
+                            showNotification("All tenant threshold alerts marked as read.", "info");
+                          }}
+                          className="text-[9px] font-bold text-blue-600 dark:text-blue-400 hover:underline hover:text-blue-700 cursor-pointer"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      {stockAlerts.filter(a => !a.tenantId || a.tenantId === currentTenantId).length > 0 && (
+                        <button
+                          onClick={() => {
+                            setStockAlerts(prev => prev.filter(a => a.tenantId !== currentTenantId && a.tenantId !== undefined));
+                            showNotification("Cleared tenant alerts history.", "info");
+                          }}
+                          className="text-[9px] font-bold text-red-500 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-slate-800/80">
+                    {stockAlerts.filter(a => !a.tenantId || a.tenantId === currentTenantId).length === 0 ? (
+                      <div className="py-8 px-4 text-center text-slate-400 dark:text-slate-500">
+                        <CheckCircle2 className="w-8 h-8 text-slate-300 dark:text-slate-650 mx-auto mb-2" />
+                        <p className="text-xs font-medium">No active threshold warnings</p>
+                        <p className="text-[10px] text-slate-400 mt-1">Updates trigger alerts when stock falls below limit</p>
+                      </div>
+                    ) : (
+                      stockAlerts.filter(a => !a.tenantId || a.tenantId === currentTenantId).map(alert => {
+                        const productRef = products.find(p => p.id === alert.productId);
+                        return (
+                          <div
+                            key={alert.id}
+                            className={`p-3 transition-colors ${
+                              alert.isRead 
+                                ? 'bg-white dark:bg-slate-900 opacity-75' 
+                                : 'bg-red-50/20 dark:bg-red-950/10 border-l-2 border-red-500'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${
+                                    alert.type === 'out_of_stock' 
+                                      ? 'bg-red-500 animate-ping' 
+                                      : 'bg-amber-500'
+                                  }`} />
+                                  <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 font-mono">
+                                    {alert.sku}
+                                  </span>
+                                  <span className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                    alert.type === 'out_of_stock'
+                                      ? 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400'
+                                      : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
+                                  }`}>
+                                    {alert.type === 'out_of_stock' ? 'STOCKOUT' : 'LOW STOCK'}
+                                  </span>
+                                </div>
+                                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate mt-1">
+                                  {alert.productName}
+                                </h4>
+                                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
+                                  Stock: <strong className="text-slate-755 dark:text-slate-200">{alert.currentQty}</strong> unit{alert.currentQty === 1 ? '' : 's'} (Safety threshold: {alert.minStock})
+                                </p>
+                                <p className="text-[8px] text-slate-400 font-mono mt-1">
+                                  {new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </p>
+                              </div>
+
+                              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                <button
+                                  onClick={() => {
+                                    setStockAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, isRead: true } : a));
+                                  }}
+                                  className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded cursor-pointer"
+                                  title="Mark as read"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                                {productRef && (
+                                  <button
+                                    onClick={() => {
+                                      handleRestockOrder(productRef);
+                                      setStockAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, isRead: true } : a));
+                                      showNotification(`Dispatched supplier restock request for: "${alert.productName}"`, 'success');
+                                    }}
+                                    className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 border border-blue-650 text-white text-[8px] font-extrabold rounded-lg flex items-center gap-1 cursor-pointer select-none transition"
+                                  >
+                                    <ShoppingCart className="w-2.5 h-2.5" />
+                                    <span>Restock</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Theme switcher toggle */}
@@ -2237,7 +2446,7 @@ export default function App() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-20 right-4 md:right-8 z-50 flex items-center gap-3.5 px-4.5 py-3 font-sans rounded-2xl bg-slate-900/90 border border-slate-750 backdrop-blur-md shadow-xl text-white"
+            className="fixed top-20 right-4 md:right-8 z-55 flex items-center gap-3.5 px-4.5 py-3 font-sans rounded-2xl bg-slate-900/90 border border-slate-750 backdrop-blur-md shadow-xl text-white"
           >
             {notification.type === 'success' ? (
               <CheckCircle2 className="w-5 h-5 text-emerald-400" />
@@ -2250,6 +2459,74 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Floating Immediate Low-Stock Toast Alerts Portal */}
+      <div className="fixed bottom-6 right-6 z-55 flex flex-col gap-3.5 max-w-sm w-full pointer-events-none">
+        <AnimatePresence>
+          {activeToastAlerts.map(toast => {
+            const productRef = products.find(p => p.id === toast.productId);
+            return (
+              <motion.div
+                key={toast.id}
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                className="pointer-events-auto w-full bg-slate-950/95 dark:bg-slate-900 border border-red-550/45 rounded-2xl p-4 shadow-2xl backdrop-blur-md text-white flex gap-3.5 font-sans relative"
+              >
+                <div className="shrink-0 w-9 h-9 rounded-full bg-red-550/10 border border-red-500/30 flex items-center justify-center text-red-400">
+                  <AlertTriangle className="w-4 h-4 animate-pulse" />
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <span className="text-[8px] bg-red-500/20 text-red-300 border border-red-500/30 font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                    {toast.type === 'out_of_stock' ? 'CRITICAL STOCKOUT' : 'THRESHOLD REACHED'}
+                  </span>
+                  
+                  <h4 className="text-xs font-black text-slate-100 truncate mt-2">
+                    {toast.productName}
+                  </h4>
+                  
+                  <p className="text-[10.5px] text-slate-400 mt-1 leading-normal">
+                    {toast.type === 'out_of_stock'
+                      ? 'Item is completely depleted on active logistical inventory shelves.'
+                      : `Inventory has reached its minimum safety margin balance!`}
+                  </p>
+                  
+                  <p className="text-xs text-slate-100 mt-2 font-medium flex items-center gap-1.5">
+                    <span>On Hand:</span>
+                    <strong className="text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded text-xs leading-none">{toast.currentQty}</strong>
+                    <span className="text-slate-500 text-[10px]">/ Safety limit: {toast.minStock}</span>
+                  </p>
+                  
+                  {productRef && (
+                    <button
+                      onClick={() => {
+                        handleRestockOrder(productRef);
+                        setActiveToastAlerts(prev => prev.filter(t => t.id !== toast.id));
+                        setStockAlerts(prev => prev.map(a => a.productId === toast.productId ? { ...a, isRead: true } : a));
+                        showNotification(`Dispatched instant restock request for ${toast.productName}!`, 'success');
+                      }}
+                      className="mt-3 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white font-black text-[10px] rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition select-none shadow-sm hover:shadow-red-950/40"
+                    >
+                      <ShoppingCart className="w-3 h-3" />
+                      <span>Order Restock Buffer (+{(toast.minStock - toast.currentQty) + 15} Qty)</span>
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setActiveToastAlerts(prev => prev.filter(t => t.id !== toast.id));
+                  }}
+                  className="absolute top-3.5 right-3.5 p-1 rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
 
       {/* Simulator Frame Wrapper */}
       <div className={`flex-1 flex justify-center items-center ${deviceLayout === 'responsive' ? 'p-0' : 'p-4'} overflow-hidden relative`}>
@@ -2403,6 +2680,26 @@ export default function App() {
             productsList={products}
             onScanSuccess={handleBarcodeScanned}
             onClose={() => setIsScannerOpen(false)}
+          />
+        )}
+
+        {isOnboardingOpen && (
+          <OnboardingWizard
+            isOpen={isOnboardingOpen}
+            onClose={() => {
+              setIsOnboardingOpen(false);
+              localStorage.setItem('logiledger_onboarding_completed_v1', 'true');
+            }}
+            currentTenantId={currentTenantId}
+            setCurrentTenantId={setCurrentTenantId}
+            products={products}
+            categories={categories}
+            saveLocalProduct={handleSaveProduct}
+            addCategory={handleCreateCategory}
+            showNotification={showNotification}
+            triggerSync={handleSimulateSyncCloud}
+            isOnline={isOnline}
+            theme={theme}
           />
         )}
       </AnimatePresence>
