@@ -38,6 +38,11 @@ Built with **React**, **Vite**, **Tailwind CSS**, and powered by **Firebase Fire
 * **Placeholder Image URL**: Custom defined optional thumbnail URLs customizable per product directly within the registration & modification panels.
 * **Inline Data Grid Visuals**: Elegant image thumbnails embedded into inventory lists on desktop grids and interactive mobile listings with automatic image fallback handlers.
 
+### 🎛️ High-Density Layout & Multi-Format CSV Import/Export (Large Monitor Ergonomics)
+* **High-Density Compact Mode**: Adjustable desktop table layout with smaller padding, adapted typography, scaled down product image thumbnails, and tight cell alignments specifically engineered to enhance visual scan rates on high-DPI desktop screens (persisted to local preferences).
+* **Instant Export CSV Engine**: A single-click downloadable data pipeline built directly inside the database header that dynamically reads active category-filtered, search-filtered products, wraps special characters securely, and outputs a complete, ready-to-import CSV ledger file of matching inventory lists.
+* **Instant Import CSV Engine (PapaParse)**: Seamless bulk-import pipeline that allows users to upload a `.csv` list directly. Features fuzzy column header matching (e.g., matching name/title/brand, UPC/barcode/ean, code/SKU), automatic missing field generation (creating random barcodes and unique SKUs if missing), automatic safety-stock threshold check triggers, transactional record logging, and automatic cloud and local ledger synchronization.
+
 ### 🔔 Visual Threshold Alert Center & Immediate Toasts
 * **Safety Stock Center**: Built-in warning dropdown drawer toggled via the main header's bell notification icon exhibiting low-stock status indicators and active SKU targets.
 * **Immediate Popups Portal**: Bottom right floating action panel immediately triggering highly visible real-time warning toasts if manual edit or transaction checkout decreases quantity below safety minimum stock.

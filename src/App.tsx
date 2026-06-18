@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Package,
   Plus,
@@ -39,9 +39,14 @@ import {
   AlertTriangle,
   X,
   BellRing,
-  HelpCircle
+  HelpCircle,
+  Maximize2,
+  Minimize2,
+  Download,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import Papa from 'papaparse';
 
 // Firebase & Auth Integrations
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -276,9 +281,16 @@ export default function App() {
   const [deviceLayout, setDeviceLayout] = useState<'responsive' | 'mobile-sim' | 'desktop-sim'>('responsive');
   const [activeTab, setActiveTab] = useState<'all' | 'planner' | 'logs' | 'labels' | 'copilot' | 'procurement' | 'count' | 'fulfillment' | 'analytics' | 'directory-sso'>('all');
   const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
+  const [isCompact, setIsCompact] = useState<boolean>(() => {
+    return localStorage.getItem('logiledger_compact_mode') === 'true';
+  });
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('logiledger_theme') as 'light' | 'dark') || 'light';
   });
+
+  useEffect(() => {
+    localStorage.setItem('logiledger_compact_mode', String(isCompact));
+  }, [isCompact]);
 
   useEffect(() => {
     localStorage.setItem('logiledger_theme', theme);
@@ -1097,6 +1109,232 @@ export default function App() {
     return matchesSearch && matchesCategory && matchesStock;
   });
 
+  // --- Export CSV Handler ---
+  const handleExportCSV = () => {
+    if (filteredProducts.length === 0) {
+      showNotification('No active products are visible under the current filter to export.', 'warning');
+      return;
+    }
+
+    const headers = [
+      'ID',
+      'Name',
+      'SKU',
+      'Barcode',
+      'Category',
+      'Price',
+      'Cost',
+      'Quantity',
+      'Min Stock',
+      'Supplier',
+      'Location',
+      'Created By',
+      'Updated At',
+      'Tenant ID'
+    ];
+
+    const rows = filteredProducts.map(p => [
+      p.id,
+      p.name,
+      p.sku,
+      p.barcode,
+      p.category,
+      p.price,
+      p.cost,
+      p.quantity,
+      p.minStock,
+      p.supplier,
+      p.location,
+      p.createdBy,
+      p.updatedAt,
+      p.tenantId
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(val => {
+        const stringVal = val === undefined || val === null ? '' : String(val);
+        const cleanVal = stringVal.replace(/"/g, '""');
+        if (cleanVal.includes(',') || cleanVal.includes('\n') || cleanVal.includes('"')) {
+          return `"${cleanVal}"`;
+        }
+        return cleanVal;
+      }).join(','))
+    ].join('\n');
+
+    try {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `logiledger_export_${currentTenantId}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showNotification(`Successfully exported ${filteredProducts.length} filtered products dynamically.`, 'success');
+    } catch (err) {
+      console.error(err);
+      showNotification('Failed to generate downloadable CSV file.', 'warning');
+    }
+  };
+
+  // --- Import CSV Handler ---
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Reset value so same file can be uploaded again
+    event.target.value = '';
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const data = results.data as Array<Record<string, string>>;
+        if (!data || data.length === 0) {
+          showNotification('No product SKU records found in the uploaded CSV file.', 'warning');
+          return;
+        }
+
+        let importedCount = 0;
+        let updatedCount = 0;
+        let skippedCount = 0;
+
+        showNotification(`Processing ${data.length} records from uploaded CSV...`, 'info');
+
+        const getFieldVal = (row: Record<string, string>, keys: string[]): string => {
+          for (const key of keys) {
+            const matchedKey = Object.keys(row).find(
+              k => k.trim().toLowerCase() === key.toLowerCase() ||
+                   k.trim().toLowerCase().replace(/[\s_-]/g, '') === key.toLowerCase().replace(/[\s_-]/g, '')
+            );
+            if (matchedKey !== undefined && row[matchedKey] !== undefined) {
+              return String(row[matchedKey]).trim();
+            }
+          }
+          return '';
+        };
+
+        const currentProducts = [...products];
+
+        for (const row of data) {
+          const name = getFieldVal(row, ['name', 'product name', 'product_name', 'title', 'brand']);
+          if (!name) {
+            skippedCount++;
+            continue;
+          }
+
+          let sku = getFieldVal(row, ['sku', 'product sku', 'product_sku', 'code']);
+          if (!sku) {
+            const cleanedName = name.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 6);
+            const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+            sku = `SKU-${cleanedName || 'GEN'}-${randomSuffix}`;
+          }
+
+          let barcode = getFieldVal(row, ['barcode', 'upc', 'ean', 'bar_code', 'isbn']);
+          if (!barcode) {
+            barcode = '9' + Math.floor(100000000000 + Math.random() * 900000000000).toString();
+          }
+
+          let category = getFieldVal(row, ['category', 'department', 'group', 'type']);
+          if (!category) {
+            category = 'General';
+          }
+
+          const priceStr = getFieldVal(row, ['price', 'unit price', 'unit_price', 'selling_price', 'rate']);
+          const costStr = getFieldVal(row, ['cost', 'unit cost', 'unit_cost', 'purchase_price']);
+          const price = isNaN(parseFloat(priceStr)) ? 0.00 : parseFloat(priceStr);
+          const cost = isNaN(parseFloat(costStr)) ? Math.max(0, price * 0.5) : parseFloat(costStr);
+
+          const qtyStr = getFieldVal(row, ['quantity', 'qty', 'count', 'stock', 'pcs', 'amount']);
+          const quantity = isNaN(parseInt(qtyStr, 10)) ? 0 : parseInt(qtyStr, 10);
+
+          const minStockStr = getFieldVal(row, ['min stock', 'min_stock', 'minStock', 'safety stock', 'reorder point']);
+          const minStock = isNaN(parseInt(minStockStr, 10)) ? 5 : parseInt(minStockStr, 10);
+
+          const supplier = getFieldVal(row, ['supplier', 'vendor', 'manufacturer', 'supplier_vendor']);
+          const location = getFieldVal(row, ['location', 'shelf', 'aisle', 'bin']);
+
+          const existingProduct = currentProducts.find(
+            p => (p.sku.toLowerCase() === sku.toLowerCase() || p.barcode === barcode) && p.tenantId === currentTenantId
+          );
+
+          const finalId = existingProduct ? existingProduct.id : `prod-${Math.random().toString(36).substr(2, 9)}`;
+          const prevQty = existingProduct ? existingProduct.quantity : 0;
+
+          const newProduct: Product = {
+            id: finalId,
+            name,
+            sku,
+            barcode,
+            category,
+            price,
+            cost,
+            quantity,
+            minStock,
+            supplier: supplier || (existingProduct?.supplier || TENANTS.find(t => t.id === currentTenantId)?.primarySupplier || 'Direct Factory'),
+            location: location || (existingProduct?.location || 'Aisle A, Row 1'),
+            updatedAt: new Date().toISOString(),
+            createdBy: user ? user.uid : (existingProduct?.createdBy || 'offline-user'),
+            tenantId: currentTenantId,
+            imageUrl: existingProduct?.imageUrl || ''
+          };
+
+          if (existingProduct) {
+            updatedCount++;
+          } else {
+            importedCount++;
+          }
+
+          saveLocalProduct(newProduct, `CSV Bulk Import (${existingProduct ? 'Update' : 'Creation'})`);
+          checkThresholdAlert(newProduct, prevQty);
+
+          if (isOnline && user) {
+            try {
+              await setDoc(doc(db, 'products', newProduct.id), newProduct);
+              const qtyDiff = newProduct.quantity - prevQty;
+              if (qtyDiff !== 0) {
+                const freshTx: Transaction = {
+                  id: `tx-${Math.random().toString(36).substr(2, 9)}`,
+                  productId: newProduct.id,
+                  productName: newProduct.name,
+                  type: qtyDiff > 0 ? 'IN' : 'OUT',
+                  quantityChanged: Math.abs(qtyDiff),
+                  previousQuantity: prevQty,
+                  newQuantity: newProduct.quantity,
+                  reason: `CSV Bulk Import (${existingProduct ? 'Update Stock' : 'Initial Stock'})`,
+                  timestamp: new Date().toISOString(),
+                  userId: user.uid,
+                  tenantId: currentTenantId
+                };
+                await setDoc(doc(db, 'transactions', freshTx.id), freshTx);
+              }
+            } catch (syncErr) {
+              console.error(`Failed to sync product ${newProduct.name} to Firestore:`, syncErr);
+            }
+          }
+        }
+
+        loadDatabase();
+        updateSyncMetrics();
+
+        if (importedCount === 0 && updatedCount === 0) {
+          showNotification(`CSV parsing complete. No updates processed. (Skipped ${skippedCount} items due to invalid schemas)`, 'warning');
+        } else {
+          showNotification(
+            `Successfully imported: ${importedCount} created, ${updatedCount} updated, and ${skippedCount} skipped.`,
+            'success'
+          );
+        }
+      },
+      error: (err) => {
+        console.error('Error parsing CSV file:', err);
+        showNotification(`Failed to parse CSV file: ${err.message}`, 'warning');
+      }
+    });
+  };
+
   // --- Sub-View Layout Panels ---
   const renderTabContent = () => {
     const forceMobile = deviceLayout === 'mobile-sim';
@@ -1330,16 +1568,61 @@ export default function App() {
             </div>
           </div>
 
-          {/* Quick Creator Button */}
-          <button
-            onClick={() => {
-              setSelectedProduct(null);
-              setIsFormOpen(true);
-            }}
-            className="flex items-center justify-center gap-1 px-5 py-2.5 bg-blue-605 bg-blue-650 bg-blue-600 hover:bg-blue-750 text-white rounded-xl text-xs font-semibold shadow-md shadow-blue-900/10 active:scale-95 transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Add Product SKU
-          </button>
+          {/* Density Control & SKU Creator toolbar */}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setIsCompact(!isCompact)}
+              className={`hidden md:flex items-center gap-1 px-3 py-2 border rounded-xl text-xs font-semibold select-none cursor-pointer active:scale-95 transition ${
+                isCompact 
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-400' 
+                  : 'bg-white border-gray-250 text-gray-700 hover:bg-gray-50 hover:border-gray-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-350'
+              }`}
+              title={isCompact ? "Switch to standard display density" : "Switch to high density compact layout"}
+            >
+              {isCompact ? <Maximize2 className="w-4 h-4 text-indigo-600" /> : <Minimize2 className="w-4 h-4 text-gray-500" />}
+              <span>{isCompact ? 'Standard Density' : 'Compact Density'}</span>
+            </button>
+
+            {/* Export CSV Button */}
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="flex items-center gap-1 px-3 py-2 border border-gray-250 bg-white hover:bg-gray-50 text-gray-700 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-350 rounded-xl text-xs font-semibold select-none cursor-pointer active:scale-95 transition"
+              title="Export filtered products to CSV file"
+            >
+              <Download className="w-4 h-4 text-gray-500" />
+              <span>Export CSV</span>
+            </button>
+
+            {/* Import CSV Button */}
+            <label
+              htmlFor="csv-import-file"
+              className="flex items-center gap-1 px-3 py-2 border border-gray-250 bg-white hover:bg-gray-50 text-gray-700 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-350 rounded-xl text-xs font-semibold select-none cursor-pointer active:scale-95 transition"
+              title="Upload and bulk-import new or updated products from CSV file"
+            >
+              <Upload className="w-4 h-4 text-gray-500" />
+              <span>Import CSV</span>
+              <input
+                type="file"
+                id="csv-import-file"
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+              />
+            </label>
+
+            {/* Quick Creator Button */}
+            <button
+              onClick={() => {
+                setSelectedProduct(null);
+                setIsFormOpen(true);
+              }}
+              className="flex items-center justify-center gap-1 px-5 py-2.5 bg-blue-605 bg-blue-650 bg-blue-600 hover:bg-blue-750 text-white rounded-xl text-xs font-semibold shadow-md shadow-blue-900/10 active:scale-95 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Add Product SKU
+            </button>
+          </div>
         </div>
 
         {/* Batch Operations Console */}
@@ -1504,8 +1787,8 @@ export default function App() {
           <div className={`${forceMobile ? 'hidden' : 'hidden md:block'} overflow-x-auto`}>
             <table className="w-full text-left border-collapse font-sans">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50 text-[10px] uppercase tracking-wider font-extrabold text-gray-500 text-center">
-                  <th className="py-3 px-3 text-center w-10">
+                <tr className={`border-b border-gray-200 bg-gray-50 uppercase tracking-wider font-extrabold text-gray-505 dark:text-slate-400 text-center ${isCompact ? 'text-[8.5px]' : 'text-[10px]'}`}>
+                  <th className={`text-center w-10 ${isCompact ? 'py-1.5 px-2' : 'py-3 px-3'}`}>
                     <input
                       type="checkbox"
                       checked={filteredProducts.length > 0 && filteredProducts.every(p => selectedProductIds.includes(p.id))}
@@ -1526,17 +1809,17 @@ export default function App() {
                       className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-3.5 h-3.5"
                     />
                   </th>
-                  <th className="py-3 px-4 text-left">Product / SKU</th>
-                  <th className="py-3 px-2">Category</th>
-                  <th className="py-3 px-2">Location</th>
-                  <th className="py-3 px-2">Unit Price</th>
-                  <th className="py-3 px-2">Qty</th>
-                  <th className="py-3 px-2 text-left">Stock Guard</th>
-                  <th className="py-3 px-3">Supplier Vendor</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className={`text-left ${isCompact ? 'py-1.5 px-2' : 'py-3 px-4'}`}>Product / SKU</th>
+                  <th className={`${isCompact ? 'py-1.5 px-1' : 'py-3 px-2'}`}>Category</th>
+                  <th className={`${isCompact ? 'py-1.5 px-1' : 'py-3 px-2'}`}>Location</th>
+                  <th className={`${isCompact ? 'py-1.5 px-1' : 'py-3 px-2'}`}>Unit Price</th>
+                  <th className={`${isCompact ? 'py-1.5 px-1' : 'py-3 px-2'}`}>Qty</th>
+                  <th className={`text-left ${isCompact ? 'py-1.5 px-2' : 'py-3 px-2'}`}>Stock Guard</th>
+                  <th className={`${isCompact ? 'py-1.5 px-2' : 'py-3 px-3'}`}>Supplier Vendor</th>
+                  <th className={`text-right ${isCompact ? 'py-1.5 px-2' : 'py-3 px-4'}`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-150 text-xs">
+              <tbody className={`divide-y divide-gray-150 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
                 {filteredProducts.length > 0 ? (
                   filteredProducts.map((p) => {
                     const isLow = p.quantity <= p.minStock && p.quantity > 0;
@@ -1545,7 +1828,7 @@ export default function App() {
                     return (
                       <tr key={p.id} className={`hover:bg-gray-50/50 transition border-b border-gray-105 border-gray-105/40 text-gray-900 ${selectedProductIds.includes(p.id) ? 'bg-indigo-50/30' : ''}`}>
                         {/* Selector Checkbox */}
-                        <td className="py-3.5 px-3 text-center">
+                        <td className={`text-center ${isCompact ? 'py-1 px-2' : 'py-3.5 px-3'}`}>
                           <input
                             type="checkbox"
                             checked={selectedProductIds.includes(p.id)}
@@ -1561,9 +1844,9 @@ export default function App() {
                         </td>
 
                         {/* Name & Barcode */}
-                        <td className="py-3.5 px-4 font-sans">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
+                        <td className={`font-sans ${isCompact ? 'py-1 px-2' : 'py-3.5 px-4'}`}>
+                          <div className="flex items-center gap-2">
+                            <div className={`${isCompact ? 'w-7 h-7 rounded-md' : 'w-10 h-10 rounded-lg'} border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 overflow-hidden shrink-0 flex items-center justify-center shadow-xs`}>
                               {p.imageUrl ? (
                                 <img
                                   src={p.imageUrl}
@@ -1576,12 +1859,12 @@ export default function App() {
                                   }}
                                 />
                               ) : (
-                                <Package className="w-4 h-4 text-slate-300 dark:text-slate-600 stroke-[1.5]" />
+                                <Package className={`${isCompact ? 'w-3 h-3' : 'w-4 h-4'} text-slate-300 dark:text-slate-600 stroke-[1.5]`} />
                               )}
                             </div>
                             <div className="flex flex-col min-w-0">
-                              <span className="font-semibold text-gray-955 text-gray-900 text-sm truncate max-w-[200px]" title={p.name}>{p.name}</span>
-                              <span className="font-mono text-[9px] text-gray-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                              <span className={`font-semibold text-gray-900 truncate ${isCompact ? 'text-xs max-w-[280px]' : 'text-sm max-w-[200px]'}`} title={p.name}>{p.name}</span>
+                              <span className={`font-mono text-gray-400 flex items-center gap-1 flex-wrap ${isCompact ? 'text-[8px] mt-0' : 'text-[9px] mt-1'}`}>
                                 <span>SKU: <strong className="text-gray-600 dark:text-gray-350 font-normal">{p.sku}</strong></span>
                                 <span>•</span>
                                 <span>Bar: <strong className="text-blue-600 dark:text-blue-400 font-normal cursor-pointer select-all hover:underline" title="Click to copy barcode" onClick={() => {
@@ -1594,78 +1877,78 @@ export default function App() {
                         </td>
 
                         {/* Category */}
-                        <td className="py-3.5 px-2 text-center text-gray-600">
-                          <span className="inline-block px-2.5 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 rounded font-semibold text-[10px]">
+                        <td className={`text-center text-gray-600 ${isCompact ? 'py-1 px-1' : 'py-3.5 px-2'}`}>
+                          <span className={`inline-block bg-gray-100 text-gray-700 border border-gray-200 rounded font-semibold ${isCompact ? 'px-1.5 py-0 text-[8px]' : 'px-2.5 py-0.5 text-[10px]'}`}>
                             {p.category}
                           </span>
                         </td>
 
                         {/* Location */}
-                        <td className="py-3.5 px-2 text-center text-gray-600 font-mono text-[10px]">
+                        <td className={`text-center text-gray-650 dark:text-gray-400 font-mono ${isCompact ? 'py-1 px-1 text-[9px]' : 'py-3.5 px-2 text-[10px]'}`}>
                           {p.location || <span className="text-gray-400 italic">No shelf</span>}
                         </td>
 
                         {/* Price & Cost Margin */}
-                        <td className="py-3.5 px-2 text-center">
-                          <div className="flex flex-col font-mono text-[11px]">
-                            <span className="font-bold text-gray-900">${p.price.toFixed(2)}</span>
-                            <span className="text-[9px] text-gray-400 mt-0.5">Cost: ${p.cost.toFixed(2)}</span>
+                        <td className={`text-center ${isCompact ? 'py-1 px-1' : 'py-3.5 px-2'}`}>
+                          <div className="flex flex-col font-mono text-center">
+                            <span className={`font-bold text-gray-900 ${isCompact ? 'text-[10px]' : 'text-[11px]'}`}>${p.price.toFixed(2)}</span>
+                            <span className={`text-gray-400 ${isCompact ? 'text-[8px] mt-0' : 'text-[9px] mt-0.5'}`}>Cost: ${p.cost.toFixed(2)}</span>
                           </div>
                         </td>
 
                         {/* Stock Balance */}
-                        <td className="py-3.5 px-2 text-center">
-                          <span className={`inline-block font-mono text-xs font-bold px-2 py-1 rounded-lg ${isOut ? 'text-red-600 bg-red-50 border border-red-105' : isLow ? 'text-amber-650 bg-amber-50 border border-amber-200 text-amber-600' : 'text-gray-700 bg-gray-100'}`}>
+                        <td className={`text-center ${isCompact ? 'py-1 px-1' : 'py-3.5 px-2'}`}>
+                          <span className={`inline-block font-mono font-bold rounded-md ${isCompact ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-1 rounded-lg'} ${isOut ? 'text-red-650 bg-red-50 border border-red-105' : isLow ? 'text-amber-650 bg-amber-50 border border-amber-200 text-amber-600' : 'text-gray-700 bg-gray-100'}`}>
                             {p.quantity} pcs
                           </span>
                         </td>
 
                         {/* Level Alerts */}
-                        <td className="py-3.5 px-2">
+                        <td className={`text-left ${isCompact ? 'py-1 px-2' : 'py-3.5 px-2'}`}>
                           {isOut ? (
-                            <div className="flex items-center gap-1.5 text-red-600 text-[10px] font-bold uppercase tracking-wider">
+                            <div className={`flex items-center gap-1 text-red-600 font-bold uppercase tracking-wider ${isCompact ? 'text-[8px]' : 'text-[10px]'}`}>
                               <span className="relative flex h-1.5 w-1.5">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
                               </span>
-                              OUT OF STOCK
+                              OUT
                             </div>
                           ) : isLow ? (
-                            <div className="flex items-center gap-1.5 text-amber-550 text-[10px] font-semibold tracking-wide text-amber-600">
+                            <div className={`flex items-center gap-1 text-amber-600 font-semibold tracking-wide ${isCompact ? 'text-[8.5px]' : 'text-[10px]'}`}>
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                              LOW STOCK (Min: {p.minStock})
+                              LOW STOCK
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1.5 text-gray-400 text-[10px]">
+                            <div className={`flex items-center gap-1 text-gray-450 ${isCompact ? 'text-[8.5px]' : 'text-[10px]'}`}>
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                              Good Stock Level
+                              Good
                             </div>
                           )}
                         </td>
 
                         {/* Supplier */}
-                        <td className="py-3.5 px-3 text-gray-600 truncate max-w-[120px]" title={p.supplier}>
+                        <td className={`text-gray-600 truncate ${isCompact ? 'py-1 px-2 max-w-[90px] text-[10px]' : 'py-3.5 px-3 max-w-[120px]'}`} title={p.supplier}>
                           {p.supplier || <span className="text-gray-400 italic">No vendor</span>}
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5 text-gray-500">
+                        <td className={`text-right ${isCompact ? 'py-1 px-2' : 'py-3.5 px-4'}`}>
+                          <div className="flex items-center justify-end gap-1 text-gray-500">
                             <button
                               onClick={() => {
                                 setSelectedProduct(p);
                                 setIsFormOpen(true);
                               }}
-                              className="p-1.5 hover:bg-gray-100 text-gray-550 hover:text-blue-600 rounded-lg border border-gray-200 hover:border-gray-300 transition cursor-pointer"
+                              className={`hover:bg-gray-100 text-gray-550 hover:text-blue-600 border border-gray-200 hover:border-gray-300 transition cursor-pointer font-medium ${isCompact ? 'px-1.5 py-0.5 text-[9px] rounded-sm' : 'p-1.5 rounded-lg'}`}
                               title="Modify active product characteristics"
                             >
                               Edit
                             </button>
                             <button
                               onClick={() => handleDeleteProduct(p.id, p.name)}
-                              className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg border border-gray-200 hover:border-red-200 transition cursor-pointer"
+                              className={`hover:bg-red-50 text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-200 transition cursor-pointer ${isCompact ? 'p-0.5 rounded-sm' : 'p-1.5 rounded-lg'}`}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
                             </button>
                           </div>
                         </td>
