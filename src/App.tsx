@@ -2668,6 +2668,7 @@ export default function App() {
             categories={categories}
             onAddCategory={handleCreateCategory}
             onSave={handleSaveProduct}
+            existingProducts={tenantProducts}
             onClose={() => {
               setIsFormOpen(false);
               setSelectedProduct(null);

@@ -1,0 +1,28 @@
+name: logiledger_inventory_app
+description: "A high-performance modern multi-tenant inventory ledger app for LogiLedger tenants."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.5
+  path: ^1.8.3
+  sqflite: ^2.3.0
+  uuid: ^4.1.0
+  image_picker: ^1.0.4
+  cloud_firestore: ^4.13.0
+  firebase_core: ^2.23.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.1
+
+flutter:
+  uses-material-design: true

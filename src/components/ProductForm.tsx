@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
-import { X, Barcode, HelpCircle, Sparkles, FolderPlus, Info, Save, RotateCcw } from 'lucide-react';
+import { X, Barcode, HelpCircle, Sparkles, FolderPlus, Info, Save, RotateCcw, Camera, CameraOff } from 'lucide-react';
 import { Product, Category } from '../types';
 
 interface ProductFormProps {
@@ -13,6 +13,7 @@ interface ProductFormProps {
   onClose: () => void;
   categories: Category[];
   onAddCategory: (category: Category) => void;
+  existingProducts?: Product[];
 }
 
 export default function ProductForm({
@@ -20,7 +21,8 @@ export default function ProductForm({
   onSave,
   onClose,
   categories,
-  onAddCategory
+  onAddCategory,
+  existingProducts = []
 }: ProductFormProps) {
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
@@ -34,6 +36,73 @@ export default function ProductForm({
   const [location, setLocation] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   
+  // Real-time Camera integration state
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Auto clean-up camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const startCamera = async () => {
+    setCameraError('');
+    setIsCameraActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err: any) {
+      console.error('Camera capture access failed:', err);
+      setCameraError('Unable to access camera hardware. Verify hardware access permissions or provide raw URL.');
+      setIsCameraActive(false);
+    }
+  };
+
+  const captureImage = () => {
+    if (videoRef.current) {
+      try {
+        const video = videoRef.current;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/png');
+          setImageUrl(dataUrl);
+          stopCamera();
+        }
+      } catch (err) {
+        console.error('Failed to capture frame reference:', err);
+        setCameraError('Failed to capture picture snapshot.');
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  };
+  
   const [newCatName, setNewCatName] = useState('');
   const [showAddCat, setShowAddCat] = useState(false);
   const [reason, setReason] = useState('');
@@ -41,6 +110,10 @@ export default function ProductForm({
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'restored'>('idle');
 
   const isEdit = !!product;
+
+  const isSkuDuplicate = !isEdit && existingProducts.some(
+    p => p.sku.trim().toLowerCase() === sku.trim().toLowerCase()
+  );
 
   const handleResetToDefault = () => {
     const key = product ? `logiledger_draft_edit_${product.id}` : 'logiledger_draft_new';
@@ -216,6 +289,7 @@ export default function ProductForm({
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (isSkuDuplicate) return;
 
     const parsedProduct: Product = {
       id: product?.id || `prod-${Math.random().toString(36).substr(2, 9)}`,
@@ -289,8 +363,13 @@ export default function ProductForm({
                   placeholder="AUTO-GENERATED"
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-blue-500 rounded-xl px-3.5 py-2 text-xs text-slate-250 font-mono outline-none transition"
+                  className={`bg-slate-950 border ${isSkuDuplicate ? 'border-red-500 hover:border-red-500 focus:border-red-500 ring-2 ring-red-500/10' : 'border-slate-800 hover:border-slate-700 focus:border-blue-500'} rounded-xl px-3.5 py-2 text-xs text-slate-250 font-mono outline-none transition`}
                 />
+                {isSkuDuplicate && (
+                  <p className="text-[10px] text-red-400 font-medium mt-0.5">
+                    This SKU is already registered in your active database.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -460,39 +539,97 @@ export default function ProductForm({
                 />
               </div>
 
-              {/* Product Image URL */}
+              {/* Product Image URL & Camera Interface */}
               <div className="flex flex-col gap-1.5 md:col-span-2">
                 <label className="text-xs text-slate-400 font-medium flex items-center justify-between">
-                  <span>Product Image Thumbnail URL (Optional)</span>
+                  <span>Product Image Thumbnail & Camera Sourcing</span>
                   {imageUrl && (
                     <span className="text-[10px] text-emerald-400 flex items-center gap-1">
-                      ● Valid Image Specified
+                      ● Active Image Loaded
                     </span>
                   )}
                 </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    placeholder="e.g. https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=120"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-blue-500 rounded-xl px-3.5 py-2 text-xs text-slate-250 outline-none transition"
-                  />
-                  {imageUrl && (
-                    <div className="w-9 h-9 border border-slate-800 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
-                      <img
-                        src={imageUrl}
-                        alt="Preview"
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "https://placehold.co/100x100?text=Error";
-                        }}
+                
+                {/* Real-time Camera Viewframe */}
+                {isCameraActive ? (
+                  <div className="relative border border-blue-500 bg-slate-900 rounded-2xl p-2.5 flex flex-col items-center gap-2.5 overflow-hidden shadow-lg">
+                    <div className="relative w-full max-w-md h-52 bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                      <video
+                        ref={videoRef}
+                        className="w-full h-full object-cover transform scale-x-100"
+                        playsInline
+                        muted
+                        autoPlay
                       />
+                      {/* Grid Target Sighter */}
+                      <div className="absolute inset-0 border-2 border-dashed border-blue-500/30 rounded-lg pointer-events-none m-4 flex items-center justify-center animate-pulse">
+                        <div className="text-[10px] text-blue-400 bg-slate-950/80 px-2 py-0.5 rounded font-bold uppercase tracking-wider font-mono">
+                          Align product within sighter
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={captureImage}
+                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-md"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Capture Snap</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={stopCamera}
+                        className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Paste image URL (Optional)"
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        className="flex-1 bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-blue-500 rounded-xl px-3.5 py-2 text-xs text-slate-250 outline-none transition"
+                      />
+                      
+                      <button
+                        type="button"
+                        onClick={startCamera}
+                        className="px-3 py-2 bg-slate-850 hover:bg-slate-800 border border-slate-750 text-blue-400 rounded-xl text-xs font-bold flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer"
+                        title="Activate webcam to register product design snapshots immediately"
+                      >
+                        <Camera className="w-4 h-4 text-blue-500" />
+                        <span>Interactive Capture</span>
+                      </button>
+
+                      {imageUrl && (
+                        <div className="w-9 h-9 border border-slate-800 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs relative group">
+                          <img
+                            src={imageUrl}
+                            alt="Preview"
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = "https://placehold.co/100x100?text=Error";
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {cameraError && (
+                      <p className="text-[10px] text-amber-500 font-medium">
+                        ⚠️ {cameraError}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -568,7 +705,7 @@ export default function ProductForm({
             <button
               type="submit"
               onClick={handleSubmit}
-              disabled={!name.trim()}
+              disabled={!name.trim() || isSkuDuplicate}
               className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-800 disabled:to-slate-800 text-white rounded-xl text-xs font-semibold shadow-lg shadow-blue-900/10 hover:shadow-blue-900/30 transition duration-150"
             >
               Save Product Information
