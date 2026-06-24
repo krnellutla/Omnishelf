@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 async function startServer() {
   const app = express();
@@ -68,6 +68,116 @@ async function startServer() {
     } catch (err: any) {
       console.error("Gemini Copilot Error:", err);
       res.status(500).json({ error: err.message || "An error occurred with Gemini processing." });
+    }
+  });
+
+  // API Route - Invoice OCR Extractor Handler
+  app.post("/api/ocr-invoice", async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.trim() === "") {
+        return res.status(400).json({
+          error: "Gemini API Key is not configured. Please add GEMINI_API_KEY inside Settings > Secrets."
+        });
+      }
+
+      const { image, products } = req.body;
+      if (!image) {
+        return res.status(400).json({ error: "Missing invoice image base64 data." });
+      }
+
+      let base64Data = image;
+      let mimeType = "image/png";
+
+      if (base64Data.startsWith("data:")) {
+        const parts = base64Data.split(",");
+        const mimePart = parts[0];
+        const match = mimePart.match(/data:(.*?);base64/);
+        if (match) {
+          mimeType = match[1];
+        }
+        base64Data = parts[1];
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      const systemInstruction = 
+        `You are an expert AI logistics auditor and warehouse data ingestion system.
+        Your task is to analyze the provided invoice image, extract supplier and billing details, and extract all invoice line items.
+        
+        To help you match line items to our existing product catalog, you are provided with our catalog products list:
+        ${JSON.stringify(products || [])}
+        
+        When extracting line items:
+        1. Compare the invoice item names/SKUs against our catalog products.
+        2. If a match is found (fuzzy match or exact match on name/SKU/brand), use that product's id as 'productId', and set 'sku' and 'productName' to matches from our catalog.
+        3. If NO match is found in our catalog, set 'productId' to "temp-new" and 'productName' and 'sku' to what is written in the invoice.
+        4. Populate 'quantity' and 'unitCost' from the invoice. Ensure quantity is an integer and unitCost is a number.
+        
+        Also extract:
+        - 'supplierName': The name of the billing vendor/supplier
+        - 'invoiceRef': The invoice reference invoice number, e.g., INV-12345
+        - 'invoiceAmount': The total billed amount listed in the invoice (number)`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data,
+            },
+          },
+          {
+            text: "Please extract supplierName, invoiceRef, invoiceAmount, and items from the attached invoice image.",
+          },
+        ],
+        config: {
+          systemInstruction,
+          temperature: 0.1,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              supplierName: { type: Type.STRING },
+              invoiceRef: { type: Type.STRING },
+              invoiceAmount: { type: Type.NUMBER },
+              items: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    productId: { type: Type.STRING },
+                    productName: { type: Type.STRING },
+                    sku: { type: Type.STRING },
+                    quantity: { type: Type.INTEGER },
+                    unitCost: { type: Type.NUMBER }
+                  },
+                  required: ["productName", "quantity", "unitCost"]
+                }
+              }
+            },
+            required: ["supplierName", "items"]
+          }
+        }
+      });
+
+      if (!response.text) {
+        throw new Error("No response text returned from Gemini API.");
+      }
+
+      const result = JSON.parse(response.text.trim());
+      res.json(result);
+    } catch (err: any) {
+      console.error("Gemini OCR Error:", err);
+      res.status(500).json({ error: err.message || "An error occurred with Gemini image OCR processing." });
     }
   });
 

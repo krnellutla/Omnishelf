@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState, ChangeEvent } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Camera, X, Play, RefreshCw, AlertCircle, Sparkles, Volume2, VolumeX, Keyboard } from 'lucide-react';
+import { Camera, X, Play, RefreshCw, AlertCircle, Sparkles, Volume2, VolumeX, Keyboard, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
 
@@ -52,6 +52,27 @@ export default function BarcodeScanner({ onScanSuccess, onClose, productsList = 
       description: 'Reverse industrial logistics transfer barcode.',
     }
   ];
+
+  const [scanHistory, setScanHistory] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('logiledger_scanned_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleScanSuccess = (code: string) => {
+    playBeep();
+    const updated = [code, ...scanHistory.filter((c) => c !== code)].slice(0, 5);
+    setScanHistory(updated);
+    try {
+      localStorage.setItem('logiledger_scanned_history', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save scan history', e);
+    }
+    onScanSuccess(code);
+  };
 
   // Initialize Audio Context for beeping
   const playBeep = () => {
@@ -173,8 +194,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose, productsList = 
           aspectRatio: 1.333333,
         },
         (decodedText) => {
-          playBeep();
-          onScanSuccess(decodedText);
+          handleScanSuccess(decodedText);
           stopScanner();
         },
         () => {
@@ -214,8 +234,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose, productsList = 
   };
 
   const handleSimulatedScan = (code: string) => {
-    playBeep();
-    onScanSuccess(code);
+    handleScanSuccess(code);
   };
 
   return (
@@ -348,7 +367,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose, productsList = 
               )}
 
               {cameraState === 'error' && (
-                <div className="text-center p-6 z-10 max-w-sm flex flex-col items-center gap-3">
+                <div className="text-center p-6 z-10 max-w-sm flex flex-col items-center gap-3 pb-20 font-sans">
                   <AlertCircle className="w-10 h-10 text-amber-500" />
                   <h4 className="font-semibold text-amber-500">Iframe Camera Blocked</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
@@ -358,6 +377,40 @@ export default function BarcodeScanner({ onScanSuccess, onClose, productsList = 
                 </div>
               )}
             </AnimatePresence>
+
+            {/* Last 5 Scanned Items Overlay */}
+            {scanHistory.length > 0 && (
+              <div className="absolute bottom-2.5 left-2.5 right-2.5 z-20 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-2.5 shadow-lg flex flex-col justify-center">
+                <div className="flex items-center justify-between px-1 mb-1.5 font-sans">
+                  <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                    <History className="w-3 h-3 text-indigo-400 animate-spin-slow" />
+                    Scan History (Last 5)
+                  </span>
+                  <span className="text-[8px] text-slate-500 font-medium font-mono uppercase tracking-wider">Click to re-scan</span>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+                  {scanHistory.map((code, idx) => {
+                    const matchedProd = productsList.find(p => p.barcode === code || p.sku === code || p.id === code);
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleScanSuccess(code)}
+                        className="flex-shrink-0 px-3 py-1.5 bg-slate-950 border border-slate-850 hover:border-indigo-500/50 hover:bg-indigo-950/20 rounded-lg text-left transition duration-150 max-w-[120px] cursor-pointer"
+                        title={`Click to re-scan ${code}`}
+                      >
+                        <div className="text-[10px] font-bold text-slate-200 truncate leading-snug font-sans">
+                          {matchedProd ? matchedProd.name : code}
+                        </div>
+                        <div className="text-[8px] text-slate-500 font-mono truncate mt-0.5">
+                          {matchedProd ? matchedProd.sku : 'Logistics Code'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Camera Selector (Only if active) */}

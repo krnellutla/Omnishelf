@@ -1,6 +1,203 @@
-import React, { useState } from 'react';
-import { ShoppingCart, FileText, CheckCircle2, ChevronRight, Truck, AlertCircle, Sparkles, Filter, ShieldAlert, DollarSign } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShoppingCart, FileText, CheckCircle2, ChevronRight, Truck, AlertCircle, Sparkles, Filter, ShieldAlert, DollarSign, Camera, Loader2, Upload, Check, AlertTriangle, FileWarning, Eye } from 'lucide-react';
 import { Product, PurchaseOrder, PurchaseOrderItem, UserRole } from '../types';
+
+// Helper function to draw a mock invoice and convert to base64
+export function generateMockInvoiceCanvas(preset: 'electronics' | 'furniture' | 'overbilled'): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 800;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 600, 800);
+
+  // Border
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(0, 0, 600, 800);
+
+  // Top header style
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(4, 4, 592, 90);
+
+  // Title
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText('INVOICE / SUPPLY RECEIPT', 30, 52);
+
+  // Subtitle
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px monospace';
+  ctx.fillText('Logistics Ledger Verification Docket', 30, 75);
+
+  // Logo Placeholder
+  ctx.fillStyle = '#6366f1';
+  ctx.beginPath();
+  ctx.arc(520, 48, 20, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('L', 515, 53);
+
+  // Metadata boxes
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(30, 120, 240, 100);
+  ctx.fillRect(330, 120, 240, 100);
+
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(30, 120, 240, 100);
+  ctx.strokeRect(330, 120, 240, 100);
+
+  // Metadata contents
+  ctx.fillStyle = '#475569';
+  ctx.font = 'bold 10px monospace';
+  ctx.fillText('SUPPLIER VENDOR:', 40, 140);
+  ctx.fillText('BILLING TO:', 340, 140);
+
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 13px sans-serif';
+  
+  let supplier = '';
+  let invoiceRef = '';
+  let itemsList: { name: string; sku: string; qty: number; cost: number }[] = [];
+  
+  if (preset === 'electronics') {
+    supplier = 'Vertex Digital Ltd';
+    invoiceRef = 'INV-VTX-7761';
+    itemsList = [
+      { name: 'Wireless Earbuds Pro', sku: 'ELE-EAR-001', qty: 20, cost: 45.00 },
+      { name: 'USB-C Fast Charger (30W)', sku: 'ELE-CHG-005', qty: 30, cost: 6.80 }
+    ];
+  } else if (preset === 'furniture') {
+    supplier = 'ComfortZone Furniture Corp';
+    invoiceRef = 'INV-CFZ-4012';
+    itemsList = [
+      { name: 'Ergonomic Office Chair', sku: 'FUR-CHR-002', qty: 5, cost: 110.05 }
+    ];
+  } else {
+    supplier = 'Vertex Digital Ltd';
+    invoiceRef = 'INV-VTX-DISC';
+    itemsList = [
+      { name: 'Wireless Earbuds Pro', sku: 'ELE-EAR-001', qty: 25, cost: 65.00 }
+    ];
+  }
+
+  ctx.fillText(supplier, 40, 162);
+  ctx.fillText('Apex Retailers Warehouse', 340, 162);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Industrial Lane Gateway A', 40, 180);
+  ctx.fillText('Changi Logistics District B', 40, 195);
+
+  ctx.fillText('100 Pasir Panjang Rd, SG', 340, 180);
+  ctx.fillText('Operator: sarah.c@logiledger.net', 340, 195);
+
+  // Invoice numbers
+  ctx.fillStyle = '#334155';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText(`Invoice No: ${invoiceRef}`, 30, 255);
+  ctx.fillText(`Date: 2026-06-24`, 450, 255);
+
+  // Divider
+  ctx.beginPath();
+  ctx.moveTo(30, 270);
+  ctx.lineTo(570, 270);
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.stroke();
+
+  // Table header
+  ctx.fillStyle = '#f1f5f9';
+  ctx.fillRect(30, 290, 540, 30);
+  
+  ctx.fillStyle = '#334155';
+  ctx.font = 'bold 11px monospace';
+  ctx.fillText('ITEM DESCRIPTION', 40, 310);
+  ctx.fillText('SKU / CODE', 260, 310);
+  ctx.fillText('QTY', 390, 310);
+  ctx.fillText('UNIT COST', 440, 310);
+  ctx.fillText('TOTAL (USD)', 510, 310);
+
+  // Table body
+  let currentY = 345;
+  let subtotal = 0;
+
+  itemsList.forEach((item) => {
+    const itemTotal = item.qty * item.cost;
+    subtotal += itemTotal;
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText(item.name, 40, currentY);
+
+    ctx.fillStyle = '#475569';
+    ctx.font = '10px monospace';
+    ctx.fillText(item.sku, 260, currentY);
+
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText(item.qty.toString(), 390, currentY);
+    ctx.fillText(`$${item.cost.toFixed(2)}`, 440, currentY);
+    ctx.fillText(`$${itemTotal.toFixed(2)}`, 510, currentY);
+
+    ctx.beginPath();
+    ctx.moveTo(30, currentY + 15);
+    ctx.lineTo(570, currentY + 15);
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.stroke();
+
+    currentY += 40;
+  });
+
+  currentY += 10;
+  ctx.fillStyle = '#475569';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Subtotal Billed:', 380, currentY);
+  ctx.font = '11px monospace';
+  ctx.fillText(`$${subtotal.toFixed(2)}`, 510, currentY);
+
+  currentY += 25;
+  ctx.fillStyle = '#475569';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Freight & Carrier fee:', 380, currentY);
+  ctx.font = '11px monospace';
+  ctx.fillText('$0.00', 510, currentY);
+
+  currentY += 25;
+  ctx.fillStyle = '#1e293b';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('TOTAL AMOUNT DUE:', 380, currentY);
+  
+  ctx.fillStyle = '#111827';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText(`$${subtotal.toFixed(2)}`, 505, currentY);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = 'italic 10px sans-serif';
+  ctx.fillText('Terms: Net 30 days. Please reconcile with warehouse before issuing accounts payable.', 30, 710);
+  ctx.fillText('Thank you for your business!', 30, 725);
+
+  ctx.fillStyle = '#0f172a';
+  const barcodeX = 350;
+  const barcodeY = 705;
+  for (let i = 0; i < 35; i++) {
+    const width = (i % 3 === 0) ? 3 : ((i % 5 === 0) ? 1 : 2);
+    ctx.fillRect(barcodeX + (i * 5), barcodeY, width, 25);
+  }
+  ctx.fillStyle = '#475569';
+  ctx.font = '9px monospace';
+  ctx.fillText(`*${invoiceRef}*`, barcodeX + 45, barcodeY + 37);
+
+  ctx.strokeStyle = 'rgba(99, 102, 241, 0.15)';
+  ctx.lineWidth = 3;
+  ctx.font = 'bold 45px sans-serif';
+  ctx.strokeText('LOGILEDGER AUDITED', 80, 500);
+
+  return canvas.toDataURL('image/png');
+}
 
 interface ProcurementHubProps {
   products: Product[];
@@ -19,13 +216,203 @@ export default function ProcurementHub({
   purchaseOrders,
   onSavePurchaseOrder
 }: ProcurementHubProps) {
-  const [activeTab, setActiveTab] = useState<'pos' | 'reorder-rules'>('pos');
+  const [activeTab, setActiveTab] = useState<'pos' | 'reorder-rules' | 'ai-ocr'>('pos');
   const [selectedPoId, setSelectedPoId] = useState<string | null>(null);
   
   // States for receiving & invoice inputs
   const [receivedQtys, setReceivedQtys] = useState<Record<string, number>>({});
   const [supplierInvoiceRef, setSupplierInvoiceRef] = useState<string>('');
   const [supplierInvoiceAmt, setSupplierInvoiceAmt] = useState<number>(0);
+
+  // --- AI OCR states ---
+  const [ocrImage, setOcrImage] = useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<'electronics' | 'furniture' | 'overbilled' | null>('electronics');
+  const [ocrLoading, setOcrLoading] = useState<boolean>(false);
+  const [ocrLoadingStep, setOcrLoadingStep] = useState<string>('');
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [ocrResult, setOcrResult] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (selectedPreset) {
+      const dataUrl = generateMockInvoiceCanvas(selectedPreset);
+      setOcrImage(dataUrl);
+      setOcrResult(null);
+      setOcrError(null);
+    }
+  }, [selectedPreset]);
+
+  const handleCustomImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setSelectedPreset(null);
+    setOcrResult(null);
+    setOcrError(null);
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setOcrImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRunOcr = async (imageSrc: string) => {
+    setOcrLoading(true);
+    setOcrError(null);
+    setOcrResult(null);
+    setOcrLoadingStep("Ingesting image buffer...");
+    
+    try {
+      const steps = [
+        "Initializing secure gateway to Gemini...",
+        "Sending invoice payload to Gemini-3.5-flash multimodal OCR...",
+        "Extracting invoice coordinates and supplier identity...",
+        "Extracting items ledger table...",
+        "Cross-referencing SKU catalog in database...",
+        "Fuzzy-matching names to existing products...",
+        "Verifying prices and calculations..."
+      ];
+      
+      let currentStepIdx = 0;
+      const interval = setInterval(() => {
+        if (currentStepIdx < steps.length - 1) {
+          currentStepIdx++;
+          setOcrLoadingStep(steps[currentStepIdx]);
+        }
+      }, 1200);
+
+      const response = await fetch('/api/ocr-invoice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          image: imageSrc,
+          products: products.map(p => ({ id: p.id, name: p.name, sku: p.sku, cost: p.cost }))
+        })
+      });
+
+      clearInterval(interval);
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to scan invoice image via Gemini API.");
+      }
+
+      const data = await response.json();
+      setOcrResult(data);
+      
+    } catch (err: any) {
+      console.error(err);
+      setOcrError(err.message || "An unexpected error occurred during OCR scanning.");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  const handleRunOcrInInspect = async (imageSrc: string, activePo: PurchaseOrder) => {
+    setOcrLoading(true);
+    setOcrError(null);
+    setOcrLoadingStep("Processing image buffer...");
+
+    try {
+      const steps = [
+        "Interfacing with Gemini-3.5-flash...",
+        "Extracting invoice totals & ref...",
+        "Mapping quantities to PO lines..."
+      ];
+      let currentIdx = 0;
+      const interval = setInterval(() => {
+        if (currentIdx < steps.length - 1) {
+          currentIdx++;
+          setOcrLoadingStep(steps[currentIdx]);
+        }
+      }, 1000);
+
+      const response = await fetch('/api/ocr-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: imageSrc,
+          products: products.map(p => ({ id: p.id, name: p.name, sku: p.sku, cost: p.cost }))
+        })
+      });
+
+      clearInterval(interval);
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "OCR failed.");
+      }
+
+      const data = await response.json();
+      
+      if (data.invoiceRef) {
+        setSupplierInvoiceRef(data.invoiceRef);
+      }
+      if (data.invoiceAmount !== undefined) {
+        setSupplierInvoiceAmt(data.invoiceAmount);
+      }
+
+      const newRecd: Record<string, number> = { ...receivedQtys };
+      activePo.items.forEach(poItem => {
+        const extractedItem = data.items?.find((ocrItem: any) => 
+          ocrItem.productId === poItem.productId || 
+          ocrItem.sku === poItem.sku || 
+          ocrItem.productName?.toLowerCase() === poItem.productName?.toLowerCase()
+        );
+        if (extractedItem) {
+          newRecd[poItem.productId] = extractedItem.quantity;
+        }
+      });
+      setReceivedQtys(newRecd);
+
+      alert(`AI Auto-Fill Completed!\n\n- Extracted Invoice Ref: ${data.invoiceRef || 'N/A'}\n- Extracted Amount: $${data.invoiceAmount?.toFixed(2) || 'N/A'}\n\nReview the pre-filled fields below before completing the Match Check.`);
+
+    } catch (err: any) {
+      setOcrError(err.message || "Failed to parse invoice.");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  const handleCreatePOFromOcr = () => {
+    if (!ocrResult) return;
+
+    const items: PurchaseOrderItem[] = ocrResult.items.map((it: any) => {
+      let matchedProduct = products.find(p => p.id === it.productId || p.sku === it.sku || p.name.toLowerCase() === it.productName.toLowerCase());
+      
+      return {
+        productId: matchedProduct?.id || `prod-ocr-${Math.floor(100000 + Math.random() * 900000)}`,
+        productName: matchedProduct?.name || it.productName,
+        sku: matchedProduct?.sku || it.sku || `SKU-OCR-${Math.floor(1000 + Math.random() * 9000)}`,
+        quantityOrdered: it.quantity,
+        quantityReceived: 0,
+        unitCost: it.unitCost
+      };
+    });
+
+    const totalValue = items.reduce((sum, item) => sum + (item.quantityOrdered * item.unitCost), 0);
+    const requiresApproval = totalValue > approvalLimit;
+
+    const newPo: PurchaseOrder = {
+      id: `PO-OCR-${Math.floor(100000 + Math.random() * 900000)}`,
+      tenantId: products[0]?.tenantId || 'tenant-apex',
+      supplierName: ocrResult.supplierName || 'Unknown Supplier',
+      status: 'DRAFT',
+      items,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      approvalRequired: requiresApproval,
+      isApproved: !requiresApproval
+    };
+
+    onSavePurchaseOrder(newPo);
+    setSelectedPoId(newPo.id);
+    setActiveTab('pos');
+    setOcrResult(null);
+    setOcrImage(null);
+  };
 
   // Filter low stock item details to help draft new orders
   const lowStockProducts = products.filter(p => p.quantity <= p.minStock);
@@ -236,6 +623,12 @@ export default function ProcurementHub({
             >
               Stock Reorder Planner
             </button>
+            <button
+              onClick={() => setActiveTab('ai-ocr')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${activeTab === 'ai-ocr' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'} flex items-center gap-1`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> AI Invoice OCR
+            </button>
           </div>
         </div>
 
@@ -346,6 +739,218 @@ export default function ProcurementHub({
             </div>
           </div>
         )}
+
+        {activeTab === 'ai-ocr' && (
+          <div className="space-y-6">
+            <div className="bg-slate-900 text-white p-6 rounded-2xl space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-lg">
+                  <Sparkles className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm">Gemini AI OCR Supply Invoice Ingestion</h4>
+                  <p className="text-[11px] text-slate-400">Powered by Gemini-3.5-flash Multimodal Vision Engine</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                Ingest supplier paper dockets, receipts, and digital invoices instantly. This module uses Gemini AI to analyze billing statements, extract product lists, and fuzzy-match them to your catalog before instantiating purchase orders.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Image Selection & Preview */}
+              <div className="space-y-4">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-mono">1. Select or Upload Invoice Image</span>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setSelectedPreset('electronics')}
+                    className={`p-2.5 rounded-xl border text-left transition ${
+                      selectedPreset === 'electronics'
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-950 font-bold shadow-xs'
+                        : 'border-gray-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-[10px] block font-extrabold text-indigo-600 font-mono">PRESET A</span>
+                    <span className="text-[11px] block mt-0.5 truncate font-bold">Vertex Digital</span>
+                    <span className="text-[9px] text-slate-400 block font-mono font-sans">2 catalog items</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedPreset('furniture')}
+                    className={`p-2.5 rounded-xl border text-left transition ${
+                      selectedPreset === 'furniture'
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-950 font-bold shadow-xs'
+                        : 'border-gray-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-[10px] block font-extrabold text-indigo-600 font-mono">PRESET B</span>
+                    <span className="text-[11px] block mt-0.5 truncate font-bold font-sans">ComfortZone Sofa</span>
+                    <span className="text-[9px] text-slate-400 block font-mono font-sans">1 catalog item</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedPreset('overbilled')}
+                    className={`p-2.5 rounded-xl border text-left transition ${
+                      selectedPreset === 'overbilled'
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-950 font-bold shadow-xs'
+                        : 'border-gray-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-[10px] block font-extrabold text-red-500 font-mono">PRESET C</span>
+                    <span className="text-[11px] block mt-0.5 truncate font-bold font-sans">Variance Demo</span>
+                    <span className="text-[9px] text-red-500/75 block font-mono font-sans">Cost anomaly demo</span>
+                  </button>
+                </div>
+
+                <div className="border border-dashed border-gray-300 rounded-2xl p-4 bg-slate-50 flex flex-col items-center justify-center text-center relative hover:bg-slate-100/50 transition">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCustomImageUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  <Upload className="w-6 h-6 text-slate-400 mb-2" />
+                  <span className="text-xs font-bold text-slate-700 font-sans">Drag or Upload Custom Invoice</span>
+                  <span className="text-[10px] text-slate-400 mt-1 font-sans">Supports JPEG, PNG up to 10MB</span>
+                </div>
+
+                {ocrImage && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">Image Preview buffer</span>
+                      {selectedPreset && (
+                        <span className="text-[9px] px-2 py-0.5 bg-indigo-100 text-indigo-700 font-bold rounded-full uppercase tracking-wider font-mono">Dynamically Rendered</span>
+                      )}
+                    </div>
+                    <div className="border border-gray-200 rounded-2xl overflow-hidden bg-slate-100 p-2 max-h-[320px] overflow-y-auto">
+                      <img src={ocrImage} alt="Invoice preview" className="w-full h-auto rounded-lg shadow-sm" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Ingestion Status & Extracted details */}
+              <div className="p-5 bg-white border border-gray-200 rounded-2xl space-y-4 flex flex-col justify-between min-h-[400px]">
+                <div className="space-y-4">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-mono font-sans">2. Extraction & Ingestion</span>
+
+                  {/* Empty state */}
+                  {!ocrLoading && !ocrResult && !ocrError && (
+                    <div className="text-center py-16 space-y-3">
+                      <Camera className="w-10 h-10 text-slate-300 mx-auto" />
+                      <div>
+                        <p className="text-xs font-bold text-slate-700 font-sans">Ready to Scan</p>
+                        <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto font-sans">Click the button below to stream this invoice image buffer to Gemini OCR models.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Loading State */}
+                  {ocrLoading && (
+                    <div className="text-center py-16 space-y-4">
+                      <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mx-auto" />
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-slate-800 animate-pulse font-sans">Running Gemini Image OCR...</p>
+                        <p className="text-[10px] text-indigo-600 font-mono font-medium max-w-[245px] mx-auto bg-indigo-50 px-2 py-1 rounded border border-indigo-100">{ocrLoadingStep}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error State */}
+                  {ocrError && (
+                    <div className="p-4 bg-red-50 border border-red-150 rounded-2xl text-red-850 text-xs space-y-2">
+                      <span className="font-bold flex items-center gap-1.5"><AlertCircle className="w-4 h-4 text-red-600" /> Scanning Interrupted</span>
+                      <p className="leading-relaxed text-[11px] font-sans">{ocrError}</p>
+                      <p className="text-[10px] text-red-600 font-sans">Please make sure your GEMINI_API_KEY is properly set up inside the Secrets drawer.</p>
+                    </div>
+                  )}
+
+                  {/* Success Results State */}
+                  {ocrResult && (
+                    <div className="space-y-4 font-sans">
+                      <div className="p-3 bg-emerald-50 border border-emerald-150 rounded-xl flex items-center gap-2 text-emerald-800 text-xs font-bold">
+                        <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Gemini OCR successfully extracted details!</span>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-xl p-3 text-xs space-y-2 font-sans">
+                        <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                          <span className="text-slate-450">Extracted Supplier Vendor:</span>
+                          <span className="font-bold text-slate-800 font-sans">{ocrResult.supplierName}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-200 pb-1.5 font-sans">
+                          <span className="text-slate-450 font-sans">Invoice Reference:</span>
+                          <span className="font-bold font-mono text-slate-800">{ocrResult.invoiceRef || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between font-sans">
+                          <span className="text-slate-450 font-sans">Total Billed Amt:</span>
+                          <span className="font-bold font-mono text-indigo-650">${ocrResult.invoiceAmount?.toFixed(2) || 'N/A'}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">Matched Line Items</span>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {ocrResult.items?.map((item: any, idx: number) => {
+                            const isNewItem = item.productId === 'temp-new' || !products.some(p => p.id === item.productId);
+                            return (
+                              <div key={idx} className="p-2 border border-slate-200 rounded-lg flex items-center justify-between text-xs bg-slate-50/50">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5 font-sans">
+                                    <span className="font-bold text-slate-800 truncate max-w-[150px] font-sans">{item.productName}</span>
+                                    {isNewItem ? (
+                                      <span className="px-1.5 py-0.2 bg-amber-50 text-amber-700 border border-amber-200 text-[8px] font-bold rounded font-mono">NEW ITEM</span>
+                                    ) : (
+                                      <span className="px-1.5 py-0.2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[8px] font-bold rounded font-mono">MATCHED</span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 font-mono block">SKU: {item.sku} • Qty {item.quantity}</span>
+                                </div>
+                                <div className="text-right font-mono font-bold text-slate-700">
+                                  ${(item.quantity * item.unitCost).toFixed(2)}
+                                  <span className="text-[9px] text-slate-400 block font-normal font-sans">@ ${item.unitCost.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer buttons */}
+                <div className="pt-4 border-t border-slate-100 flex gap-2.5 font-sans">
+                  {!ocrResult ? (
+                    <button
+                      onClick={() => ocrImage && handleRunOcr(ocrImage)}
+                      disabled={ocrLoading || !ocrImage}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    >
+                      <Sparkles className="w-4 h-4" /> Run AI OCR Scan
+                    </button>
+                  ) : (
+                    <div className="flex gap-2 w-full font-sans">
+                      <button
+                        onClick={() => { setOcrResult(null); if (selectedPreset) setSelectedPreset(selectedPreset); }}
+                        className="px-3 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 transition cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={handleCreatePOFromOcr}
+                        className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Check className="w-4 h-4" /> Confirm & Ingest Draft PO
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right side inspect / workflow action panel */}
@@ -425,6 +1030,70 @@ export default function ProcurementHub({
               {/* SENT status: Warehouse physical verification & match audits */}
               {(selectedPo.status === 'SENT' || selectedPo.status === 'PARTIALLY_RECEIVED') && (
                 <div className="space-y-5">
+                  {/* AI OCR Smart Auto-Fill Assistant */}
+                  <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-1.5 text-indigo-950 font-bold text-xs">
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
+                      <span>AI OCR Auto-Fill Assistant</span>
+                    </div>
+                    <p className="text-[11px] text-indigo-900 leading-normal">
+                      Scan supplier invoice to automatically extract and pre-fill receipt quantities, invoice references, and matching amounts instantly.
+                    </p>
+                    
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-1.5 text-[10px] font-bold">
+                        <button
+                          onClick={async () => {
+                            const presetType = selectedPo.id === 'PO-881293' ? 'electronics' : (selectedPo.supplierName.includes('Furniture') ? 'furniture' : 'overbilled');
+                            const base64 = generateMockInvoiceCanvas(presetType);
+                            await handleRunOcrInInspect(base64, selectedPo);
+                          }}
+                          disabled={ocrLoading}
+                          className="px-2.5 py-1.5 bg-white border border-indigo-200 hover:bg-indigo-100/50 text-indigo-700 rounded-lg font-sans transition flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          {ocrLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          Scan Mock Invoice
+                        </button>
+                        
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onloadend = async () => {
+                                await handleRunOcrInInspect(reader.result as string, selectedPo);
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                            disabled={ocrLoading}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          />
+                          <button
+                            disabled={ocrLoading}
+                            className="w-full px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition flex items-center justify-center gap-1 cursor-pointer font-sans"
+                          >
+                            <Upload className="w-3 h-3" /> Custom Image
+                          </button>
+                        </div>
+                      </div>
+
+                      {ocrLoading && (
+                        <div className="text-center p-2 bg-indigo-100/50 rounded-lg text-[10px] text-indigo-950 font-mono animate-pulse font-bold">
+                          {ocrLoadingStep}
+                        </div>
+                      )}
+                      
+                      {ocrError && (
+                        <div className="p-2 bg-red-50 text-red-700 text-[10px] rounded-lg font-bold font-sans">
+                          {ocrError}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="space-y-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">1. Confirm Shipped Quantities</span>
                     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 text-xs">
