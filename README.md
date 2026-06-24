@@ -43,6 +43,30 @@ Built with **React**, **Vite**, **Tailwind CSS**, and powered by **Firebase Fire
 * **Instant Export CSV Engine**: A single-click downloadable data pipeline built directly inside the database header that dynamically reads active category-filtered, search-filtered products, wraps special characters securely, and outputs a complete, ready-to-import CSV ledger file of matching inventory lists.
 * **Instant Import CSV Engine (PapaParse)**: Seamless bulk-import pipeline that allows users to upload a `.csv` list directly. Features fuzzy column header matching (e.g., matching name/title/brand, UPC/barcode/ean, code/SKU), automatic missing field generation (creating random barcodes and unique SKUs if missing), automatic safety-stock threshold check triggers, transactional record logging, and automatic cloud and local ledger synchronization.
 
+### 🚚 Logistics Health & Optimizer Hub (Solving the 5 Critical Logistics Bottlenecks)
+
+Traditional inventory platforms function as static spreadsheets. LogiLedger's optimizer actively diagnoses and solves the five primary bottlenecks that freeze capital, disrupt transits, and leak product margins:
+
+1. **💸 Stagnant Deadstock (Frozen Assets)**
+   * **The Bottleneck**: Millions of dollars of wholesale capital are locked up in slow-moving shelves or obsolete stock, eating up physical shelf footprint and dragging down capital turnover.
+   * **Our Solution**: The **Deadstock Capital Recovery Engine** dynamically computes frozen cash valuation in USD, flags stagnant inventory, and deploys targeted stock-clearance promo campaigns in a single click.
+
+2. **🌊 Lead-Time Variability (Supply Fragility)**
+   * **The Bottleneck**: Unpredictable overseas transits, customs gridlocks, and shipping delays disrupt replenishment lanes, causing stockouts and breaking client fulfillment promises.
+   * **Our Solution**: **Dynamic Lead-Time Safety Buffers** automatically classify supplier lanes, applying a +25% safety stock multiplier to critical SKUs to shield catalogs from delays.
+
+3. **🚶 Spatial Fragmentation (Walk-Time Inefficiencies)**
+   * **The Bottleneck**: Split cargo replenishment spreads identical categories across distant aisles, forcing pickers and packers to walk miles of redundant warehouse routes.
+   * **Our Solution**: The **Interactive Shelf Spatial Map** monitors aisle footprint density, allowing supervisors to group product categories instantly via automated bin layout defragmentation.
+
+4. **📉 Phantom Inventory & Shrinkage (Count Drift)**
+   * **The Bottleneck**: Stale paper-based cycle counts create significant delays, allowing shrinkage and inventory drift to skew electronic channel balances undetected.
+   * **Our Solution**: The mobile-friendly **Count Drift Auditor** calculates real-time USD valuation discrepancies between physical racks and digital records, posting immediate balance adjustments.
+
+5. **🧾 Procurement Deviations (Vendor Billing Leaks)**
+   * **The Bottleneck**: Unannounced supplier price hikes or shipment deficits in bulk cargo receipts go unnoticed, bleeding up to 9% of procurement budgets.
+   * **Our Solution**: Strict programmatic **3-Way Match Verification** automatically cross-references PO quantities, warehouse receipts, and final invoices to block costing leaks.
+
 ### 🔔 Visual Threshold Alert Center & Immediate Toasts
 * **Safety Stock Center**: Built-in warning dropdown drawer toggled via the main header's bell notification icon exhibiting low-stock status indicators and active SKU targets.
 * **Immediate Popups Portal**: Bottom right floating action panel immediately triggering highly visible real-time warning toasts if manual edit or transaction checkout decreases quantity below safety minimum stock.

@@ -32,7 +32,11 @@ import {
   Settings,
   RefreshCw,
   Eye,
-  CheckSquare
+  CheckSquare,
+  TrendingDown,
+  MapPin,
+  AlertTriangle,
+  Boxes
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserRole } from '../types';
@@ -315,16 +319,16 @@ function validateThreeWayMatch(purchaseOrder) {
           <div className="lg:col-span-7 space-y-6 text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-wider rounded-full">
               <Sparkles className="w-3 h-3 animate-spin" />
-              <span>Multi-Tenant Enterprise Logistics Ecosystem</span>
+              <span>Logistics Health & Optimizer Ecosystem</span>
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight font-sans">
-              Decoupled Logistics <br />
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-pink-400 to-cyan-400">Inventory Ledger</span> & SSO Gate
+              Eliminate Warehouse <br />
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-pink-400 to-cyan-400">Operational Bottlenecks</span> & Cost Leaks
             </h1>
             
-            <p className="text-sm sm:text-base text-slate-400 max-w-xl leading-relaxed">
-              Achieve absolute database record isolation across merchant channels. Fast webcams label printing, cyclic spot count discrepancies tracking, robust offline SQLite equivalents, and SAML authorizations. 
+            <p className="text-sm sm:text-base text-slate-400 max-w-xl leading-relaxed font-sans">
+              The first multi-tenant inventory ledger designed with real-time diagnostics. Reclaim frozen deadstock capital, configure dynamic lead-time reorder safety buffers, optimize aisle layouts, and audit physical count drift instantly.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -518,6 +522,135 @@ function validateThreeWayMatch(purchaseOrder) {
             </div>
           </div>
 
+        </div>
+      </section>
+
+      {/* Operations Bottleneck & Solution Map */}
+      <section className="py-20 border-t border-slate-900 bg-slate-950/20 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+            <span className="text-[10px] font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-500/20 inline-block">
+              Operations Bottleneck & Solution Map
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white font-sans">
+              Stop Leaking Capital. Unshackle Your Warehouse.
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-2xl mx-auto font-sans">
+              Traditional ERP/WMS platforms treat inventory as inert rows in a database. LogiLedger actively diagnoses and fixes the five primary bottlenecks that freeze cash reserves and slow down warehouse floor throughput.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            {/* Bottleneck 1 */}
+            <div className="p-6 bg-slate-900/40 border border-slate-800/80 rounded-2xl flex flex-col justify-between hover:border-red-500/30 transition-all duration-300">
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center">
+                  <TrendingDown className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider font-mono">1. Frozen Capital</h4>
+                  <p className="text-[10px] text-red-400 font-semibold mt-1">Stagnant Deadstock</p>
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                    <strong>The Pain:</strong> Slow-moving inventory occupies premium storage shelf footprint and locks up wholesale cash with zero capital turnover.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-800/60">
+                <span className="text-[9px] text-emerald-400 font-mono font-black block uppercase tracking-wider">LEDGER REMEDY</span>
+                <p className="text-xs text-slate-350 mt-1 leading-relaxed">
+                  Real-time <strong>Deadstock Optimizer</strong> calculates idle cash and deploys targeted stock-clearance discounts dynamically.
+                </p>
+              </div>
+            </div>
+
+            {/* Bottleneck 2 */}
+            <div className="p-6 bg-slate-900/40 border border-slate-800/80 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all duration-300">
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider font-mono">2. Supply Fragility</h4>
+                  <p className="text-[10px] text-amber-400 font-semibold mt-1">Lead-Time Variability</p>
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                    <strong>The Pain:</strong> Delays in overseas transits trigger immediate shelf stockouts and destroy merchant fulfillment promises.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-800/60">
+                <span className="text-[9px] text-emerald-400 font-mono font-black block uppercase tracking-wider">LEDGER REMEDY</span>
+                <p className="text-xs text-slate-350 mt-1 leading-relaxed">
+                  <strong>Dynamic Lead-Time Buffers</strong> evaluate supplier performance and apply safety stock multiplier pads automatically.
+                </p>
+              </div>
+            </div>
+
+            {/* Bottleneck 3 */}
+            <div className="p-6 bg-slate-900/40 border border-slate-800/80 rounded-2xl flex flex-col justify-between hover:border-indigo-500/30 transition-all duration-300">
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider font-mono">3. Walk Inefficiency</h4>
+                  <p className="text-[10px] text-indigo-400 font-semibold mt-1">Spatial Fragmentation</p>
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                    <strong>The Pain:</strong> Fragmented shelving spreads identical SKU categories over chaotic aisles, ballooning picker travel times.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-800/60">
+                <span className="text-[9px] text-emerald-400 font-mono font-black block uppercase tracking-wider">LEDGER REMEDY</span>
+                <p className="text-xs text-slate-350 mt-1 leading-relaxed">
+                  Interactive <strong>Spatial Density Map</strong> optimizes utilization and guides layouts with one-click bin defragmentation.
+                </p>
+              </div>
+            </div>
+
+            {/* Bottleneck 4 */}
+            <div className="p-6 bg-slate-900/40 border border-slate-800/80 rounded-2xl flex flex-col justify-between hover:border-pink-500/30 transition-all duration-300">
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center">
+                  <ClipboardCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider font-mono">4. Ledger Drift</h4>
+                  <p className="text-[10px] text-pink-400 font-semibold mt-1">Inaccurate Physical counts</p>
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                    <strong>The Pain:</strong> Untracked shrinkage or double-scans create phantom stock, misleading sales channels.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-800/60">
+                <span className="text-[9px] text-emerald-400 font-mono font-black block uppercase tracking-wider">LEDGER REMEDY</span>
+                <p className="text-xs text-slate-350 mt-1 leading-relaxed">
+                  Mobile-friendly <strong>Count Drift Auditor</strong> verifies counts and commits instant balance adjusting logs.
+                </p>
+              </div>
+            </div>
+
+            {/* Bottleneck 5 */}
+            <div className="p-6 bg-slate-900/40 border border-slate-800/80 rounded-2xl flex flex-col justify-between hover:border-emerald-500/30 transition-all duration-300">
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <ShoppingCart className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider font-mono">5. Vendor Variance</h4>
+                  <p className="text-[10px] text-emerald-400 font-semibold mt-1">Costly Overbillings</p>
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                    <strong>The Pain:</strong> Incorrect pricing and quantity mismatch between supplier invoice and delivery logs leakage up to 9% of margins.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-800/60">
+                <span className="text-[9px] text-emerald-400 font-mono font-black block uppercase tracking-wider">LEDGER REMEDY</span>
+                <p className="text-xs text-slate-350 mt-1 leading-relaxed">
+                  Rigorous <strong>3-Way Match Validation</strong> dynamically reconciles POs, Invoices, and receipts prior to ledger entry.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

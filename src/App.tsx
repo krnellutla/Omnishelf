@@ -21,6 +21,7 @@ import {
   ChevronRight,
   TrendingDown,
   Warehouse,
+  Boxes,
   Printer,
   ChevronDown,
   Activity,
@@ -81,6 +82,7 @@ import AnalyticsHub from './components/AnalyticsHub';
 import CopilotHub from './components/CopilotHub';
 import ProductLandingSite from './components/ProductLandingSite';
 import OnboardingWizard from './components/OnboardingWizard';
+import LogisticsOptimizer from './components/LogisticsOptimizer';
 
 interface Tenant {
   id: string;
@@ -279,7 +281,7 @@ export default function App() {
 
   // --- Layout Preferences ---
   const [deviceLayout, setDeviceLayout] = useState<'responsive' | 'mobile-sim' | 'desktop-sim'>('responsive');
-  const [activeTab, setActiveTab] = useState<'all' | 'planner' | 'logs' | 'labels' | 'copilot' | 'procurement' | 'count' | 'fulfillment' | 'analytics' | 'directory-sso'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'planner' | 'logs' | 'labels' | 'copilot' | 'procurement' | 'count' | 'fulfillment' | 'analytics' | 'directory-sso' | 'logistics-optimizer'>('all');
   const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
   const [isCompact, setIsCompact] = useState<boolean>(() => {
     return localStorage.getItem('logiledger_compact_mode') === 'true';
@@ -1392,6 +1394,26 @@ export default function App() {
             onTriggerWebhook={handleTriggerWebhook}
           />
         );
+      case 'logistics-optimizer':
+        return (
+          <LogisticsOptimizer
+            products={products}
+            transactions={tenantTransactions}
+            currentRole={currentRole}
+            currentTenantId={currentTenantId}
+            onAdjustProductStock={handleAdjustProductStock}
+            onUpdateMinStock={async (productId, newMin) => {
+              const targetProduct = products.find(p => p.id === productId);
+              if (targetProduct) {
+                await handleSaveProduct({
+                  ...targetProduct,
+                  minStock: newMin
+                }, 'Dynamic Supplier Lead-time Safety Buffer Update');
+              }
+            }}
+            showNotification={showNotification}
+          />
+        );
       case 'directory-sso':
         return (
           <DirectorySSOHub
@@ -2220,6 +2242,19 @@ export default function App() {
               </button>
 
               <button
+                onClick={() => setActiveTab('logistics-optimizer')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'logistics-optimizer' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Boxes className="w-4 h-4 text-indigo-400 animate-pulse" />
+                  <span>Logistics Health Hub</span>
+                </div>
+                <div className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 font-bold font-mono text-[8.5px] rounded border border-indigo-500/35">
+                  NEW
+                </div>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('analytics')}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${activeTab === 'analytics' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
               >
@@ -2365,6 +2400,14 @@ export default function App() {
             >
               <BarChart3 className="w-4 h-4" />
               <span className="text-[9px]">API & Reps</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('logistics-optimizer')}
+              className={`flex flex-col items-center justify-center gap-1 py-0.5 ${activeTab === 'logistics-optimizer' ? 'text-blue-400 font-bold' : 'text-slate-400'}`}
+            >
+              <Boxes className="w-4 h-4 text-indigo-400" />
+              <span className="text-[9px]">Logistics</span>
             </button>
 
             <button
