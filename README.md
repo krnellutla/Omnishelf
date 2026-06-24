@@ -81,6 +81,24 @@ Traditional inventory platforms function as static spreadsheets. LogiLedger's op
 * **Live In-App Diagnostic Runner**: Runs automated UX and API compliance checks inside the Setup Wizard. Newly onboarded clients click a button to execute a live system check (localStorage write speeds, cloud sync triggers, notification rule paths, and viewport layouts) and view real-time log outputs.
 * **Command-Line Vitest Framework**: Complete end-to-end automated unit test scripts (`/src/utils/localDB.test.ts`) integrated with Vitest. Run `npm run test` or `npx vitest run` to verify data consistency and transactional inventory ledger checks.
 
+### 🏢 Advanced Warehouse Management (WMS) Execution Engine
+To move beyond static spreadsheet cell tracking and match advanced enterprise supply chain benchmarks, OmniShelf embeds a dual-screen, action-oriented execution engine. It splits core tasks between high-density analysis and active on-the-floor hardware operations:
+* **Dynamic Order Wave Picking & Waypoint Routing**:
+  * **Desktop Console (Planner)**: Consolidated Wave Manager dashboard that bundles multiple active shipments into unified batch pick-runs, grouping orders by warehouse physical zones and transport pickup timelines.
+  * **Mobile Companion (Picker)**: Displays streamlined walk-lists with 3D aisle path waypoints, prompting workers to batch-scan matching SKUs with sequential verification to slash search latency.
+* **A-B-C Velocity Slotting & Directed Putaway**:
+  * **Desktop Console (Planner)**: Automated velocity analytics engine that monitors transaction velocities and assigns dynamic A-B-C slotting grades, recommending optimal bins (high-velocity SKUs nearest to exit docks).
+  * **Mobile Companion (Operator)**: Scan-to-bin directed putaway workflow. Dictates exact receipt drop-off aisles and locks input fields until barcode verification is successfully captured.
+* **Zero-Storage Cross-Docking Coordinator**:
+  * **Desktop Console (Planner)**: Inbound manifest matching board that correlates incoming supplier orders with existing backorder backlogs in real-time.
+  * **Mobile Companion (Operator)**: Immediate visual warning trigger at receiving dock. Alerts operators to bypass storage shelves and divert receipts directly to outbound transport bays.
+* **VAS & On-The-Fly Promotional Kitting**:
+  * **Desktop Console (Planner)**: Kit Definition Console to configure bundles and assembly bills of materials.
+  * **Mobile Companion (Operator)**: Workstation scanning guide. Operator executes sequential barcode verifications of components to ensure absolute assembly traceability.
+* **Dock Door Scheduling & Gatekeeper Portal**:
+  * **Desktop Console (Planner)**: Visual drag-and-drop dock bay scheduler to coordinate supplier container trucks and freight slots.
+  * **Mobile Companion (Operator)**: Handheld check-in door gatekeeper sheet. Captures driver licenses, logs actual arrival times, and files direct digital check-in signatures.
+
 ### 📱 Flutter Native Mobile Companion (Dart & SQLite Expansion)
 * **Dual-Codebase Architecture**: Scale from full-screen web workstations to local mobile hardware using a unified Firestore API and database contract.
 * **SQLite Relational Engine**: Embedded `sqflite` database handles local transactions natively with full ACID compliance—ensuring low-connectivity resilience in remote warehouses/delivery trucks.

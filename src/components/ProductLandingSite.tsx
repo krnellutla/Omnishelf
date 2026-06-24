@@ -131,6 +131,31 @@ export default function ProductLandingSite({ onEnterDemo, onEnterQuick }: Produc
       title: 'Resilient Offline Syncer',
       description: 'Runs offline seamlessly. Tracks sync states, queues modifications locally, and reconciles instantly with remote Firestore clouds when connection recovers.',
     },
+    {
+      icon: <Boxes className="w-5 h-5 text-purple-400" />,
+      title: 'Dynamic Wave Picking & Routing',
+      description: 'Desktop Console aggregates high-volume orders into optimal picking waves. Mobile Companion guides floor operators along continuous spatial routes to slash walking delays.',
+    },
+    {
+      icon: <MapPin className="w-5 h-5 text-orange-400" />,
+      title: 'Velocity Slotting & Directed Putaway',
+      description: 'Analyze inventory sales velocity on Desktop using automated A-B-C rules to map optimal bin layouts. Receive real-time scan-to-bin verification instructions on Mobile.',
+    },
+    {
+      icon: <RefreshCw className="w-5 h-5 text-emerald-400" />,
+      title: 'Zero-Storage Cross-Docking',
+      description: 'Compare active inbound shipment manifests against pending client backorders on Desktop. Mobilize warehouse staff immediately to direct receipts to active export gates.',
+    },
+    {
+      icon: <CheckSquare className="w-5 h-5 text-rose-400" />,
+      title: 'VAS & On-The-Fly Kitting',
+      description: 'Define multi-component bills of materials and promotional bundle assembly guidelines on Desktop. Push sequential step-by-step assembly checklists directly to Mobile terminals.',
+    },
+    {
+      icon: <Clock className="w-5 h-5 text-sky-400" />,
+      title: 'Dock Gate & Yard Scheduler',
+      description: 'Coordinate inbound container truck arrivals using a visual drag-and-drop dock scheduler on Desktop. Log arrivals and capture signatures instantly on the mobile Gatekeeper portal.',
+    }
   ];
 
   const faqs = [
