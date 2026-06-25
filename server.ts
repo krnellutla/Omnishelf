@@ -9,6 +9,34 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Helper function to call asynchronous Gemini functions with built-in retries for transient errors (like 503 UNAVAILABLE or 429)
+  const callGeminiWithRetry = async <T>(fn: () => Promise<T>, retries = 2, delayMs = 1000): Promise<T> => {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        return await fn();
+      } catch (err: any) {
+        const status = err.status || err.statusCode || err.code;
+        const isTransient = status === 503 || status === 429 ||
+                            (err.message && (
+                              err.message.includes("503") || 
+                              err.message.includes("UNAVAILABLE") || 
+                              err.message.includes("high demand") ||
+                              err.message.includes("temporary") ||
+                              err.message.includes("resource exhausted") ||
+                              err.message.includes("429")
+                            ));
+        if (isTransient && i < retries) {
+          console.warn(`[Gemini Transient Error] (Attempt ${i + 1}/${retries + 1}). Retrying in ${delayMs}ms... Error: ${err.message || err}`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          delayMs *= 2.5; // Exponential backoff
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error("Gemini invocation failed after retries.");
+  };
+
   // API Route - Copilot Handler
   app.post("/api/copilot", async (req, res) => {
     try {
@@ -55,14 +83,14 @@ async function startServer() {
         "${prompt}"
       `;
 
-      const response = await ai.models.generateContent({
+      const response = await callGeminiWithRetry(() => ai.models.generateContent({
         model: activeModel,
         contents,
         config: {
           systemInstruction,
           temperature: 0.7,
         }
-      });
+      }));
 
       res.json({ text: response.text });
     } catch (err: any) {
@@ -126,7 +154,7 @@ async function startServer() {
         - 'invoiceRef': The invoice reference invoice number, e.g., INV-12345
         - 'invoiceAmount': The total billed amount listed in the invoice (number)`;
 
-      const response = await ai.models.generateContent({
+      const response = await callGeminiWithRetry(() => ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: [
           {
@@ -167,7 +195,7 @@ async function startServer() {
             required: ["supplierName", "items"]
           }
         }
-      });
+      }));
 
       if (!response.text) {
         throw new Error("No response text returned from Gemini API.");
