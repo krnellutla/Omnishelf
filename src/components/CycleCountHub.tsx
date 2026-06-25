@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ClipboardCheck, Sparkles, AlertCircle, BarChart3, CheckCircle2, Save, Calendar, Tag, ShieldCheck } from 'lucide-react';
+import { ClipboardCheck, Sparkles, AlertCircle, BarChart3, CheckCircle2, Save, Calendar, Tag, ShieldCheck, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Product, CycleCountSession, CycleCountItem, UserRole } from '../types';
 
 interface CycleCountHubProps {
@@ -21,6 +22,11 @@ export default function CycleCountHub({
 }: CycleCountHubProps) {
   const [activeTab, setActiveTab] = useState<'abc' | 'sessions'>('abc');
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [localAlert, setLocalAlert] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'warning' | 'info';
+  } | null>(null);
   
   // Active session counts
   const [physicalCounts, setPhysicalCounts] = useState<Record<string, number>>({});
@@ -133,9 +139,17 @@ export default function CycleCountHub({
           );
         }
       });
-      alert(`Cycle Count Reconciled! Stock quantities successfully updated in the master ledger.`);
+      setLocalAlert({
+        title: "Cycle Count Reconciled",
+        message: "Stock quantities successfully updated in the master ledger.",
+        type: "success"
+      });
     } else {
-      alert(`Count session submitted for administrative sign-off! Reason: Stock physical variances require Operations lock approval.`);
+      setLocalAlert({
+        title: "Submitted for Approval",
+        message: "Count session submitted for administrative sign-off! Reason: Stock physical variances require Operations lock approval.",
+        type: "info"
+      });
     }
 
     setActiveSessionId(null);
@@ -143,7 +157,11 @@ export default function CycleCountHub({
 
   const handleApproveVarianceSession = (session: CycleCountSession) => {
     if (currentRole !== 'Operations Director') {
-      alert("Permission Lockdown: Only Operations Directors can authorize count variance adjustments.");
+      setLocalAlert({
+        title: "Permission Lockdown",
+        message: "Only active Operations Directors can authorize count variance adjustments.",
+        type: "warning"
+      });
       return;
     }
 
@@ -170,7 +188,11 @@ export default function CycleCountHub({
       }
     });
 
-    alert("Count variance successfully authorized and synced to the core ledger.");
+    setLocalAlert({
+      title: "Variance Authorized",
+      message: "Count variance successfully authorized and synced to the core ledger.",
+      type: "success"
+    });
     setActiveSessionId(null);
   };
 
@@ -584,6 +606,57 @@ export default function CycleCountHub({
           </div>
         )}
       </div>
+
+      {/* Custom Animated State-based Alert Dialog */}
+      <AnimatePresence>
+        {localAlert && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setLocalAlert(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 z-10 space-y-4"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`p-3 rounded-xl shrink-0 ${
+                  localAlert.type === 'success' 
+                    ? 'bg-emerald-50 text-emerald-600' 
+                    : localAlert.type === 'warning' 
+                      ? 'bg-amber-50 text-amber-600' 
+                      : 'bg-blue-50 text-blue-600'
+                }`}>
+                  {localAlert.type === 'success' ? (
+                    <CheckCircle2 className="w-6 h-6" />
+                  ) : localAlert.type === 'warning' ? (
+                    <AlertCircle className="w-6 h-6" />
+                  ) : (
+                    <ClipboardCheck className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-slate-900 leading-snug">{localAlert.title}</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed font-sans">{localAlert.message}</p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => setLocalAlert(null)}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

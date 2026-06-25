@@ -251,6 +251,39 @@ const DEFAULT_SALES_ORDERS: SalesOrder[] = [
 export default function App() {
   // --- Core States ---
   const [products, setProducts] = useState<Product[]>([]);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+  } | null>(null);
+
+  const triggerConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    options?: { confirmText?: string; cancelText?: string; onCancel?: () => void }
+  ) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmModal(null);
+      },
+      onCancel: () => {
+        if (options?.onCancel) options.onCancel();
+        setConfirmModal(null);
+      },
+      confirmText: options?.confirmText || 'Confirm',
+      cancelText: options?.cancelText || 'Cancel'
+    });
+  };
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -746,53 +779,57 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (id: string, name: string) => {
-    if (confirm(`Are you sure you want to permanently delete "${name}" from your active store files?`)) {
-      const prod = products.find(p => p.id === id);
-      const isSystem = prod?.createdBy === 'system';
-      
-      // Record removal in transaction ledger
-      if (prod) {
-        const qty = prod.quantity;
-        const freshTx: Transaction = {
-          id: `tx-${Math.random().toString(36).substr(2, 9)}`,
-          productId: id,
-          productName: name,
-          type: 'OUT',
-          quantityChanged: qty,
-          previousQuantity: qty,
-          newQuantity: 0,
-          reason: `Product listing permanently deleted from record index.`,
-          timestamp: new Date().toISOString(),
-          userId: user ? user.uid : 'offline-user',
-          tenantId: currentTenantId
-        };
-        createLocalTransaction(freshTx);
+    triggerConfirm(
+      'Delete Product Listing',
+      `Are you sure you want to permanently delete "${name}" from your active store files? This action cannot be undone.`,
+      async () => {
+        const prod = products.find(p => p.id === id);
+        const isSystem = prod?.createdBy === 'system';
         
-        if (isOnline && user && !isSystem) {
-          try {
-            await setDoc(doc(db, 'transactions', freshTx.id), freshTx);
-          } catch (e) {
-            console.error(e);
+        // Record removal in transaction ledger
+        if (prod) {
+          const qty = prod.quantity;
+          const freshTx: Transaction = {
+            id: `tx-${Math.random().toString(36).substr(2, 9)}`,
+            productId: id,
+            productName: name,
+            type: 'OUT',
+            quantityChanged: qty,
+            previousQuantity: qty,
+            newQuantity: 0,
+            reason: `Product listing permanently deleted from record index.`,
+            timestamp: new Date().toISOString(),
+            userId: user ? user.uid : 'offline-user',
+            tenantId: currentTenantId
+          };
+          createLocalTransaction(freshTx);
+          
+          if (isOnline && user && !isSystem) {
+            try {
+              await setDoc(doc(db, 'transactions', freshTx.id), freshTx);
+            } catch (e) {
+              console.error(e);
+            }
           }
         }
-      }
 
-      deleteLocalProduct(id);
-      loadDatabase();
-      updateSyncMetrics();
+        deleteLocalProduct(id);
+        loadDatabase();
+        updateSyncMetrics();
 
-      if (isOnline && user && !isSystem) {
-        try {
-          await deleteDoc(doc(db, 'products', id));
-          showNotification(`Permanently deleted and cloud-synced: ${name}`, 'info');
-        } catch (error) {
-          console.error("Cloud delete failed:", error);
-          showNotification(`Deleted locally: ${name}`, 'info');
+        if (isOnline && user && !isSystem) {
+          try {
+            await deleteDoc(doc(db, 'products', id));
+            showNotification(`Permanently deleted and cloud-synced: ${name}`, 'info');
+          } catch (error) {
+            console.error("Cloud delete failed:", error);
+            showNotification(`Deleted locally: ${name}`, 'info');
+          }
+        } else {
+          showNotification(`Deleted item list reference: ${name}`, 'info');
         }
-      } else {
-        showNotification(`Deleted item list reference: ${name}`, 'info');
       }
-    }
+    );
   };
 
   const handleBatchUpdate = async (updates: {
@@ -884,60 +921,64 @@ export default function App() {
 
   const handleBatchDelete = async () => {
     if (selectedProductIds.length === 0) return;
-    if (confirm(`Are you sure you want to permanently delete these ${selectedProductIds.length} designated products from your index listings?`)) {
-      let count = 0;
-      const promises: Promise<any>[] = [];
+    triggerConfirm(
+      'Bulk Delete Products',
+      `Are you sure you want to permanently delete these ${selectedProductIds.length} designated products from your active index listings? This will wipe out their records entirely.`,
+      async () => {
+        let count = 0;
+        const promises: Promise<any>[] = [];
 
-      for (const pId of selectedProductIds) {
-        const prod = products.find(p => p.id === pId);
-        if (!prod) continue;
-        const isSystem = prod.createdBy === 'system';
+        for (const pId of selectedProductIds) {
+          const prod = products.find(p => p.id === pId);
+          if (!prod) continue;
+          const isSystem = prod.createdBy === 'system';
 
-        const qty = prod.quantity;
-        const freshTx: Transaction = {
-          id: `tx-${Math.random().toString(36).substr(2, 9)}`,
-          productId: pId,
-          productName: prod.name,
-          type: 'OUT',
-          quantityChanged: qty,
-          previousQuantity: qty,
-          newQuantity: 0,
-          reason: `Bulk items indices deletion.`,
-          timestamp: new Date().toISOString(),
-          userId: user ? user.uid : 'offline-user',
-          tenantId: currentTenantId
-        };
-        
-        createLocalTransaction(freshTx);
-        deleteLocalProduct(pId);
+          const qty = prod.quantity;
+          const freshTx: Transaction = {
+            id: `tx-${Math.random().toString(36).substr(2, 9)}`,
+            productId: pId,
+            productName: prod.name,
+            type: 'OUT',
+            quantityChanged: qty,
+            previousQuantity: qty,
+            newQuantity: 0,
+            reason: `Bulk items indices deletion.`,
+            timestamp: new Date().toISOString(),
+            userId: user ? user.uid : 'offline-user',
+            tenantId: currentTenantId
+          };
+          
+          createLocalTransaction(freshTx);
+          deleteLocalProduct(pId);
 
-        if (isOnline && user && !isSystem) {
-          const promise = (async () => {
-            try {
-              await setDoc(doc(db, 'transactions', freshTx.id), freshTx);
-              await deleteDoc(doc(db, 'products', pId));
-            } catch (e) {
-              console.error("Cloud failure inside batch destruction loop:", pId, e);
-            }
-          })();
-          promises.push(promise);
+          if (isOnline && user && !isSystem) {
+            const promise = (async () => {
+              try {
+                await setDoc(doc(db, 'transactions', freshTx.id), freshTx);
+                await deleteDoc(doc(db, 'products', pId));
+              } catch (e) {
+                console.error("Cloud failure inside batch destruction loop:", pId, e);
+              }
+            })();
+            promises.push(promise);
+          }
+          count++;
         }
-        count++;
-      }
 
-      if (promises.length > 0) {
-        try {
-          await Promise.all(promises);
-        } catch (e) {
-          console.error(e);
+        if (promises.length > 0) {
+          try {
+            await Promise.all(promises);
+          } catch (e) {
+            console.error(e);
+          }
         }
-      }
 
-      loadDatabase();
-      updateSyncMetrics();
-      setSelectedProductIds([]);
-      showNotification(`Bulk purge complete, deleted ${count} selected records successfully!`, 'info');
-    }
+        loadDatabase();
+        updateSyncMetrics();
+        setSelectedProductIds([]);
+        showNotification(`Bulk purge complete, deleted ${count} selected records successfully!`, 'info');
+      }
+    );
   };
 
   const handleCreateCategory = async (newCat: Category) => {
@@ -975,30 +1016,35 @@ export default function App() {
       showNotification(`Matched scanned barcode payload: "${matched.name}"`, 'success');
     } else {
       // Prompt user option to create registration for this code
-      if (confirm(`Barcode "${code}" was not found in active database. Register as a new SKU?`)) {
-        setSelectedProduct(null); // Clear active item to configure fresh
-        
-        // Setup initial object, passing scanned barcode parameter
-        const tempId = Math.floor(100000 + Math.random() * 900000).toString();
-        const freshProduct: Product = {
-          id: `prod-${tempId}`,
-          name: '',
-          barcode: code,
-          sku: `SKU-${tempId}`,
-          category: categories[0]?.name || 'Electronics',
-          price: 0,
-          cost: 0,
-          quantity: 0,
-          minStock: 5,
-          supplier: '',
-          location: '',
-          updatedAt: new Date().toISOString(),
-          createdBy: user ? user.uid : 'offline-user',
-          tenantId: currentTenantId
-        };
-        setSelectedProduct(freshProduct);
-        setIsFormOpen(true);
-      }
+      triggerConfirm(
+        'New SKU Registration',
+        `Barcode "${code}" was not found in active database. Would you like to register it as a new SKU?`,
+        () => {
+          setSelectedProduct(null); // Clear active item to configure fresh
+          
+          // Setup initial object, passing scanned barcode parameter
+          const tempId = Math.floor(100000 + Math.random() * 900000).toString();
+          const freshProduct: Product = {
+            id: `prod-${tempId}`,
+            name: '',
+            barcode: code,
+            sku: `SKU-${tempId}`,
+            category: categories[0]?.name || 'Electronics',
+            price: 0,
+            cost: 0,
+            quantity: 0,
+            minStock: 5,
+            supplier: '',
+            location: '',
+            updatedAt: new Date().toISOString(),
+            createdBy: user ? user.uid : 'offline-user',
+            tenantId: currentTenantId
+          };
+          setSelectedProduct(freshProduct);
+          setIsFormOpen(true);
+        },
+        { confirmText: 'Register SKU', cancelText: 'Cancel' }
+      );
     }
   };
 
@@ -3028,6 +3074,48 @@ export default function App() {
             isOnline={isOnline}
             theme={theme}
           />
+        )}
+
+        {confirmModal && confirmModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => confirmModal.onCancel?.()}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 z-10 space-y-4"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-slate-50 text-slate-800 rounded-xl shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-indigo-650" />
+                </div>
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-slate-900 leading-snug">{confirmModal.title}</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed font-sans">{confirmModal.message}</p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => confirmModal.onCancel?.()}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                >
+                  {confirmModal.cancelText}
+                </button>
+                <button
+                  onClick={() => confirmModal.onConfirm()}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer"
+                >
+                  {confirmModal.confirmText}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
       

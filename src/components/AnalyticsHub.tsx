@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BarChart3, HelpCircle, FileSpreadsheet, Key, Play, Terminal, Plus, Trash, Globe, Send, CircleDot } from 'lucide-react';
+import { BarChart3, HelpCircle, FileSpreadsheet, Key, Play, Terminal, Plus, Trash, Globe, Send, CircleDot, X, CheckCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Product, WebhookLog, UserRole } from '../types';
 
 interface AnalyticsHubProps {
@@ -16,6 +17,11 @@ export default function AnalyticsHub({
   onTriggerWebhook
 }: AnalyticsHubProps) {
   const [activeTab, setActiveTab] = useState<'reports' | 'webhooks'>('reports');
+  const [localAlert, setLocalAlert] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'warning' | 'info';
+  } | null>(null);
   
   // Custom report builder state
   const [groupBy, setGroupBy] = useState<'category' | 'supplier' | 'location'>('category');
@@ -173,7 +179,11 @@ export default function AnalyticsHub({
                 </div>
 
                 <button
-                  onClick={() => alert("Report Export initialized! Commencing CSV generation on directory background threads.")}
+                  onClick={() => setLocalAlert({
+                    title: "Report Export Initialized",
+                    message: "Commencing CSV compilation. Your file is generating on background data stream threads.",
+                    type: "success"
+                  })}
                   className="px-3.5 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-slate-700 rounded-lg font-bold transition flex items-center justify-center gap-1 cursor-pointer"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-gray-500" /> Export CSV
@@ -323,8 +333,12 @@ export default function AnalyticsHub({
             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest font-mono">Dossier Terminal Viewer</span>
           </div>
           <button
-            onClick={() => alert("Code snippets are formatted for live CRM APIs.")}
-            className="text-[9px] uppercase font-black text-slate-400 hover:text-slate-850"
+            onClick={() => setLocalAlert({
+              title: "Payload Help Documentation",
+              message: "These JSON payloads are formatted in absolute compatibility with live CRM and Enterprise ERP webhooks APIs.",
+              type: "info"
+            })}
+            className="text-[9px] uppercase font-black text-slate-400 hover:text-slate-850 cursor-pointer"
           >
             Payload Help
           </button>
@@ -345,6 +359,57 @@ export default function AnalyticsHub({
           </div>
         )}
       </div>
+
+      {/* State-based Custom Animated Alert Dialog */}
+      <AnimatePresence>
+        {localAlert && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setLocalAlert(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 z-10 space-y-4"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`p-3 rounded-xl shrink-0 ${
+                  localAlert.type === 'success' 
+                    ? 'bg-emerald-50 text-emerald-600' 
+                    : localAlert.type === 'warning' 
+                      ? 'bg-amber-50 text-amber-600' 
+                      : 'bg-blue-50 text-blue-600'
+                }`}>
+                  {localAlert.type === 'success' ? (
+                    <CheckCircle className="w-6 h-6" />
+                  ) : localAlert.type === 'warning' ? (
+                    <HelpCircle className="w-6 h-6" />
+                  ) : (
+                    <Terminal className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-slate-900 leading-snug">{localAlert.title}</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed font-sans">{localAlert.message}</p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => setLocalAlert(null)}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

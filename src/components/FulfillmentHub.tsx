@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Truck, Package, Clipboard, Tag, CheckCircle, RefreshCw, AlertTriangle, CheckSquare, Printer, Award, CornerDownLeft } from 'lucide-react';
+import { Truck, Package, Clipboard, Tag, CheckCircle, RefreshCw, AlertTriangle, CheckSquare, Printer, Award, CornerDownLeft, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { SalesOrder, SalesOrderItem, UserRole } from '../types';
 
 interface FulfillmentHubProps {
@@ -28,6 +29,12 @@ export default function FulfillmentHub({
   const [activeTab, setActiveTab] = useState<'orders' | 'returns' | 'carriers'>('orders');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   
+  const [localAlert, setLocalAlert] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'warning' | 'info';
+  } | null>(null);
+
   // Packing dimensions & selected rates
   const [cargoLength, setCargoLength] = useState<number>(30);
   const [cargoWidth, setCargoWidth] = useState<number>(20);
@@ -93,7 +100,11 @@ export default function FulfillmentHub({
     });
 
     if (!allPicked) {
-      alert("Variance detected: Please pick all units matching customer PO requirements.");
+      setLocalAlert({
+        title: "Variance Detected",
+        message: "Please pick all units matching customer PO requirements.",
+        type: "warning"
+      });
       return;
     }
 
@@ -142,7 +153,11 @@ export default function FulfillmentHub({
       onShipInventory(item.productId, item.quantityOrdered, `Shipped customer order (${order.id}) via ${selectedQuote.carrier}.`);
     });
 
-    alert(`Fulfillment Approved! Label generated: ${trackingNum}. Inventory books adjusted automatically.`);
+    setLocalAlert({
+      title: "Fulfillment Approved",
+      message: `Label generated: ${trackingNum}. Inventory books adjusted automatically.`,
+      type: "success"
+    });
   };
 
   const handleSimulateTrackingTrip = (order: SalesOrder, step: 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'EXCEPTION_HOLD') => {
@@ -171,7 +186,11 @@ export default function FulfillmentHub({
 
     const order = salesOrders.find(o => o.id === rmaOrderId);
     if (!order) {
-      alert("Sales order reference target not found.");
+      setLocalAlert({
+        title: "Order Not Found",
+        message: "Sales order reference target not found.",
+        type: "warning"
+      });
       return;
     }
 
@@ -188,12 +207,20 @@ export default function FulfillmentHub({
       order.items.forEach(item => {
         onReturnInventory(item.productId, item.quantityOrdered, 'RESTOCKED');
       });
-      alert("RMA authorized! Return stock successfully inspected, written clean, and restocked on terminal shelves.");
+      setLocalAlert({
+        title: "RMA Restock Authorized",
+        message: "Return stock successfully inspected, written clean, and restocked on terminal shelves.",
+        type: "success"
+      });
     } else {
       order.items.forEach(item => {
         onReturnInventory(item.productId, item.quantityOrdered, 'WRITE_OFF');
       });
-      alert("RMA authorized! Shortages logged as transit loss; written off from physical asset capital accounts.");
+      setLocalAlert({
+        title: "RMA Transit Loss Logged",
+        message: "Shortages logged as transit loss; written off from physical asset capital accounts.",
+        type: "success"
+      });
     }
 
     setRmaOrderId('');
@@ -620,6 +647,57 @@ export default function FulfillmentHub({
           </div>
         )}
       </div>
+
+      {/* Elegant State-based Custom Alert Modal */}
+      <AnimatePresence>
+        {localAlert && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setLocalAlert(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 z-10 space-y-4"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`p-3 rounded-xl shrink-0 ${
+                  localAlert.type === 'success' 
+                    ? 'bg-emerald-50 text-emerald-600' 
+                    : localAlert.type === 'warning' 
+                      ? 'bg-amber-50 text-amber-600' 
+                      : 'bg-blue-50 text-blue-600'
+                }`}>
+                  {localAlert.type === 'success' ? (
+                    <CheckCircle className="w-6 h-6" />
+                  ) : localAlert.type === 'warning' ? (
+                    <AlertTriangle className="w-6 h-6" />
+                  ) : (
+                    <Clipboard className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-slate-900 leading-snug">{localAlert.title}</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed font-sans">{localAlert.message}</p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => setLocalAlert(null)}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

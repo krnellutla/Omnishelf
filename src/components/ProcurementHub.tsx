@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, FileText, CheckCircle2, ChevronRight, Truck, AlertCircle, Sparkles, Filter, ShieldAlert, DollarSign, Camera, Loader2, Upload, Check, AlertTriangle, FileWarning, Eye } from 'lucide-react';
+import { ShoppingCart, FileText, CheckCircle2, ChevronRight, Truck, AlertCircle, Sparkles, Filter, ShieldAlert, DollarSign, Camera, Loader2, Upload, Check, AlertTriangle, FileWarning, Eye, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Product, PurchaseOrder, PurchaseOrderItem, UserRole } from '../types';
 
 // Helper function to draw a mock invoice and convert to base64
@@ -218,6 +219,11 @@ export default function ProcurementHub({
 }: ProcurementHubProps) {
   const [activeTab, setActiveTab] = useState<'pos' | 'reorder-rules' | 'ai-ocr'>('pos');
   const [selectedPoId, setSelectedPoId] = useState<string | null>(null);
+  const [localAlert, setLocalAlert] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'warning' | 'info';
+  } | null>(null);
   
   // States for receiving & invoice inputs
   const [receivedQtys, setReceivedQtys] = useState<Record<string, number>>({});
@@ -367,7 +373,11 @@ export default function ProcurementHub({
       });
       setReceivedQtys(newRecd);
 
-      alert(`AI Auto-Fill Completed!\n\n- Extracted Invoice Ref: ${data.invoiceRef || 'N/A'}\n- Extracted Amount: $${data.invoiceAmount?.toFixed(2) || 'N/A'}\n\nReview the pre-filled fields below before completing the Match Check.`);
+      setLocalAlert({
+        title: "AI Auto-Fill Completed",
+        message: `Extracted Invoice Ref: ${data.invoiceRef || 'N/A'}\nExtracted Amount: $${data.invoiceAmount?.toFixed(2) || 'N/A'}\n\nReview the pre-filled fields below before completing the Match Check.`,
+        type: "success"
+      });
 
     } catch (err: any) {
       setOcrError(err.message || "Failed to parse invoice.");
@@ -499,7 +509,11 @@ export default function ProcurementHub({
 
   const handleApprovePO = (po: PurchaseOrder) => {
     if (currentRole !== 'Operations Director') {
-      alert("Permission Lockdown: Only active Operations Directors can override and authorize procurement budgets.");
+      setLocalAlert({
+        title: "Permission Lockdown",
+        message: "Only active Operations Directors can override and authorize procurement budgets.",
+        type: "warning"
+      });
       return;
     }
     const updated = {
@@ -1212,6 +1226,58 @@ export default function ProcurementHub({
           </div>
         )}
       </div>
+
+      {/* State-based Custom Animated Alert Dialog */}
+      <AnimatePresence>
+        {localAlert && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setLocalAlert(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 z-10 space-y-4"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`p-3 rounded-xl shrink-0 ${
+                  localAlert.type === 'success' 
+                    ? 'bg-emerald-50 text-emerald-600' 
+                    : localAlert.type === 'warning' 
+                      ? 'bg-amber-50 text-amber-600' 
+                      : 'bg-blue-50 text-blue-600'
+                }`}>
+                  {localAlert.type === 'success' ? (
+                    <CheckCircle2 className="w-6 h-6" />
+                  ) : localAlert.type === 'warning' ? (
+                    <AlertTriangle className="w-6 h-6" />
+                  ) : (
+                    <ShoppingCart className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-slate-900 leading-snug">{localAlert.title}</h4>
+                  <p className="text-sm text-slate-600 whitespace-pre-line leading-relaxed font-sans">{localAlert.message}</p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => setLocalAlert(null)}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
