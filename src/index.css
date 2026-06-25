@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
+@variant dark (.dark &);
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -37,7 +39,8 @@ html.dark .bg-white\/90 {
 /* Soft background variations (Layout page canvas) */
 html.dark .bg-slate-50\/80,
 html.dark .bg-slate-100\/50,
-html.dark .bg-gray-50\/50 {
+html.dark .bg-gray-50\/50,
+html.dark .bg-\[\#F3F4F6\] {
   background-color: #0b0f19 !important;
 }
 
@@ -159,3 +162,68 @@ html.dark .from-slate-50 {
 html.dark .to-indigo-50\/60 {
   --tw-gradient-to: rgba(99, 102, 241, 0.05) !important;
 }
+
+/* Ensure the barcode printable sheet container and cards are styled beautifully and remain highly legible under any mode */
+.barcode-sheet-container {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.dark .barcode-sheet-container {
+  background-color: #111827 !important; /* Elegant dark container card */
+  border-color: #1f2937 !important;
+}
+
+/* Ensure the print button inside the barcode sheet works nicely in dark mode */
+html.dark .barcode-sheet-container button {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #f3f4f6 !important;
+}
+
+/* Keep barcode stickers always physical-style light/white and high contrast in both themes */
+.barcode-label-card-always-light {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.dark .barcode-label-card-always-light {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Enforce crisp high contrast text colors for barcode details regardless of dark mode rules */
+.barcode-label-card-always-light .barcode-item-name {
+  color: #334155 !important; /* Clear slate-700 name */
+}
+
+.barcode-label-card-always-light .barcode-digits {
+  color: #0f172a !important; /* Deep charcoal code digits */
+}
+
+.barcode-label-card-always-light .barcode-sku,
+.barcode-label-card-always-light .barcode-sku span {
+  color: #64748b !important; /* Balanced slate-500 SKU subtext */
+}
+
+.barcode-label-card-always-light .barcode-bar {
+  background-color: #0f172a !important; /* Perfect black barcode lines */
+}
+
+html.dark .barcode-label-card-always-light .barcode-item-name {
+  color: #334155 !important;
+}
+
+html.dark .barcode-label-card-always-light .barcode-digits {
+  color: #0f172a !important;
+}
+
+html.dark .barcode-label-card-always-light .barcode-sku,
+html.dark .barcode-label-card-always-light .barcode-sku span {
+  color: #64748b !important;
+}
+
+html.dark .barcode-label-card-always-light .barcode-bar {
+  background-color: #0f172a !important;
+}
+

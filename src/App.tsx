@@ -1489,7 +1489,7 @@ export default function App() {
   // --- Label sheets generator ---
   const renderBarcodeSheet = () => {
     return (
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6 font-sans shadow-xs">
+      <div className="barcode-sheet-container bg-white border border-gray-200 rounded-2xl p-6 space-y-6 font-sans shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h3 className="font-semibold text-gray-950 text-base flex items-center gap-2">
@@ -1512,14 +1512,14 @@ export default function App() {
             <div
               key={item.id}
               onClick={() => handleBarcodeScanned(item.barcode)}
-              className="bg-white text-gray-900 border border-gray-200 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer hover:ring-2 hover:ring-blue-605 hover:ring-blue-600 transition group relative shadow-xs"
+              className="barcode-label-card-always-light bg-white text-gray-900 border border-gray-200 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer hover:ring-2 hover:ring-blue-605 hover:ring-blue-600 transition group relative shadow-xs"
               title="Click to simulate scan scan on this item code"
             >
               <div className="absolute top-2 right-2 bg-blue-600 text-white font-semibold rounded text-[8px] px-1.5 py-0.5 uppercase tracking-wider scale-0 group-hover:scale-100 transition origin-right font-mono">
                 Scan Code
               </div>
 
-              <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500 mb-1 leading-snug w-full truncate">
+              <span className="barcode-item-name text-[10px] uppercase font-bold tracking-wider text-gray-500 mb-1 leading-snug w-full truncate">
                 {item.name}
               </span>
               
@@ -1534,17 +1534,17 @@ export default function App() {
                       <div
                         key={i}
                         style={{ flexGrow: widthClass }}
-                        className={`${isWhite ? 'bg-transparent' : 'bg-slate-950'} h-full`}
+                        className={`${isWhite ? 'bg-transparent' : 'bg-slate-950 barcode-bar'} h-full`}
                       />
                     );
                   })}
                 </div>
               </div>
 
-              <span className="font-mono text-[9px] font-bold text-gray-800 tracking-[0.2em] mt-1">
+              <span className="barcode-digits font-mono text-[9px] font-bold text-gray-800 tracking-[0.2em] mt-1">
                 {item.barcode}
               </span>
-              <span className="text-[8px] font-mono font-medium text-gray-400 mt-0.5 uppercase space-x-1">
+              <span className="barcode-sku text-[8px] font-mono font-medium text-gray-400 mt-0.5 uppercase space-x-1">
                 <span>SKU: {item.sku}</span>
               </span>
             </div>
